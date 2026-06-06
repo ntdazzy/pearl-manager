@@ -56,7 +56,7 @@ check "Required Python imports" "$DIR/venv/bin/python" - <<'PY'
 import fastapi, sqlalchemy, telegram, matplotlib, requests
 PY
 check "Python compile" "$DIR/venv/bin/python" -m py_compile "$DIR/config.py" "$DIR/models.py" "$DIR/database.py" "$DIR/miner_services.py" "$DIR/app.py" "$DIR/telegram_bot.py" "$DIR/telegram_controller.py"
-check "Shell syntax" bash -n "$DIR/setup_env.sh" "$DIR/deploy.sh" "$DIR/install.sh" "$DIR/start_all.sh" "$DIR/stop_all.sh" "$DIR/pearl-manager.sh" "$DIR/verify_deploy.sh" "$DIR/shell_env.sh"
+check "Shell syntax" bash -n "$DIR/setup_env.sh" "$DIR/deploy.sh" "$DIR/install.sh" "$DIR/start_all.sh" "$DIR/stop_all.sh" "$DIR/pearl-manager.sh" "$DIR/benchmark_miners.sh" "$DIR/setup_cloudflare_tunnel.sh" "$DIR/verify_deploy.sh" "$DIR/shell_env.sh"
 
 DEFAULT_MINER_EXEC="${MINER_DIR:-}/alpha-miner"
 if [[ "${MINER_TYPE:-alpha}" == "srbminer" ]]; then

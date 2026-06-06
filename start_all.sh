@@ -52,7 +52,33 @@ PY
   fi
 }
 
+apply_startup_oc_profile() {
+  local profile="${STARTUP_OC_PROFILE:-}"
+  if [[ -z "$profile" ]]; then
+    echo "External OC: skipped (STARTUP_OC_PROFILE is empty)"
+    return 0
+  fi
+  if [[ ! -x "$DIR/venv/bin/python" ]]; then
+    echo "External OC: skipped (venv is missing)"
+    return 0
+  fi
+  echo "External OC: applying profile '$profile' before starting miner"
+  "$DIR/venv/bin/python" - "$profile" <<'PY'
+import json
+import sys
+
+from miner_services import apply_oc_profile
+
+profile = sys.argv[1]
+result = apply_oc_profile(profile)
+print(json.dumps(result, ensure_ascii=False, indent=2))
+if not result.get("ok"):
+    raise SystemExit(1)
+PY
+}
+
 sudo -n systemctl start postgresql.service
+apply_startup_oc_profile
 sudo -n systemctl start "$MINER_SERVICE"
 notify_miner_started
 sudo -n systemctl start "$WEB_SERVICE"

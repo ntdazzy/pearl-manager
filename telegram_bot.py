@@ -323,7 +323,10 @@ def screen_menu(refresh_callback: str, primary_callback: str | None = None) -> I
                 InlineKeyboardButton("💰 Số dư", callback_data="balance"),
                 InlineKeyboardButton("⚙️ Cài đặt", callback_data="settings"),
             ],
-            [InlineKeyboardButton("⬅️ Menu", callback_data="menu")],
+            [
+                InlineKeyboardButton("❓ Trợ giúp", callback_data="help"),
+                InlineKeyboardButton("⬅️ Menu", callback_data="menu"),
+            ],
         ]
     )
     return InlineKeyboardMarkup(rows)
@@ -370,6 +373,7 @@ def main_menu() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🧠 Dự Đoán", callback_data="predict"),
                 InlineKeyboardButton("⚙️ Cài Đặt", callback_data="settings"),
             ],
+            [InlineKeyboardButton("❓ Trợ Giúp", callback_data="help")],
         ]
     )
 
@@ -386,7 +390,10 @@ def control_menu() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("⚡ Mức điện", callback_data="oc_menu"),
             ],
             [InlineKeyboardButton("📊 Refresh trạng thái", callback_data="controls")],
-            [InlineKeyboardButton("⬅️ Menu", callback_data="menu")],
+            [
+                InlineKeyboardButton("❓ Trợ giúp", callback_data="help"),
+                InlineKeyboardButton("⬅️ Menu", callback_data="menu"),
+            ],
         ]
     )
 
@@ -538,6 +545,46 @@ def menu_text() -> str:
     )
 
 
+def help_text() -> str:
+    config = cfg()
+    temp_shutdown = config.get("TEMP_SHUTDOWN_C", "90")
+    temp_warn = config.get("TEMP_WARN_C", "84")
+    startup_profile = config.get("STARTUP_OC_PROFILE", "balance")
+    miner_type = config.get("MINER_TYPE", "alpha")
+    pool = f"{config.get('POOL_HOST', 'N/A')}:{config.get('POOL_PORT', 'N/A')}"
+    return (
+        "<b>❓ Trợ giúp Pearl Miner</b>\n"
+        "Bot này dùng nút bấm là chính; bạn không cần nhớ nhiều lệnh.\n\n"
+        "<b>Lệnh nhanh</b>\n"
+        "/start - mở menu chính và ảnh tổng quan\n"
+        "/help - xem hướng dẫn này\n\n"
+        "<b>Các nút chính</b>\n"
+        "📊 Thống kê: xem máy đang chạy không, tốc độ, nhiệt, điện và số AlphaPool đang thấy.\n"
+        "💰 Số dư: xem PRL chờ trả, giá USD/VNĐ và số máy trên AlphaPool.\n"
+        "📈 Xem biểu đồ: gửi ảnh tốc độ/nhiệt độ 24h gần đây.\n"
+        "🎮 Điều khiển: bật, tắt, khởi động lại máy đào và đổi mức điện.\n"
+        "⚙️ Cài đặt: xem pool, ngưỡng bảo vệ và các mức điện đang có.\n\n"
+        "<b>Cách đọc số liệu</b>\n"
+        "Trên máy = số đọc trực tiếp từ máy đào local.\n"
+        "AlphaPool = số pool ghi nhận, có thể chậm hơn vài phút.\n"
+        "Tốc độ chính = số hệ thống chọn để tính ước lượng, ưu tiên số đáng tin hơn.\n\n"
+        "<b>An toàn hiện tại</b>\n"
+        f"Miner: <code>{esc(miner_type)}</code>\n"
+        f"Pool: <code>{esc(pool)}</code>\n"
+        f"Mức điện khởi động: <code>{esc(startup_profile)}</code>\n"
+        f"Cảnh báo/dừng nhiệt: <b>{esc(temp_warn)}/{esc(temp_shutdown)}°C</b>\n"
+        "Các lệnh tắt hoặc khởi động lại đều có màn hình xác nhận trước."
+    )
+
+
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        if update.message:
+            await update.message.reply_text("Unauthorized chat.")
+        return
+    await reply_or_edit(update, await asyncio.to_thread(help_text), screen_menu("help", "stats"))
+
+
 def render_overview_image() -> BytesIO | None:
     try:
         import matplotlib
@@ -615,6 +662,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         if data == "menu":
             await reply_or_edit(update, await asyncio.to_thread(menu_text), main_menu())
+        elif data == "help":
+            await reply_or_edit(update, await asyncio.to_thread(help_text), screen_menu("help", "stats"))
         elif data == "stats":
             await show_stats(update)
         elif data == "balance":
@@ -911,6 +960,7 @@ def build_application() -> Application:
         raise RuntimeError("Missing TELEGRAM_TOKEN in config.env")
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("help", help_cmd))
     app.add_handler(CallbackQueryHandler(callback_handler))
     chat_id = allowed_chat_id()
     if chat_id:

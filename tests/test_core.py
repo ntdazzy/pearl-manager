@@ -598,8 +598,29 @@ class TelegramUiTests(unittest.IsolatedAsyncioTestCase):
         import telegram_bot
 
         buttons = [button.text for row in telegram_bot.main_menu().inline_keyboard for button in row]
-        for label in ["📊 Thống Kê", "🎮 Điều Khiển", "💰 Số Dư", "⚙️ Cài Đặt", "📈 Xem Biểu Đồ"]:
+        for label in ["📊 Thống Kê", "🎮 Điều Khiển", "💰 Số Dư", "⚙️ Cài Đặt", "📈 Xem Biểu Đồ", "❓ Trợ Giúp"]:
             self.assertIn(label, buttons)
+
+    def test_help_text_explains_key_actions(self):
+        import telegram_bot
+
+        with patch.object(
+            telegram_bot,
+            "cfg",
+            return_value={
+                "MINER_TYPE": "alpha",
+                "POOL_HOST": "sg1.alphapool.tech",
+                "POOL_PORT": "5566",
+                "STARTUP_OC_PROFILE": "balance",
+                "TEMP_WARN_C": "84",
+                "TEMP_SHUTDOWN_C": "90",
+            },
+        ):
+            text = telegram_bot.help_text()
+        self.assertIn("/help", text)
+        self.assertIn("Trên máy", text)
+        self.assertIn("AlphaPool", text)
+        self.assertIn("balance", text)
 
     def test_oc_menu_contains_default_profiles(self):
         import telegram_bot
@@ -905,6 +926,22 @@ class ApiTests(unittest.TestCase):
         with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
             app.require_dashboard_access(request)
 
+    def test_cloudflare_tunnel_headers_are_not_treated_as_local(self):
+        from starlette.datastructures import Headers, QueryParams
+        import app
+
+        request = type("Req", (), {})()
+        request.client = type("Client", (), {"host": "127.0.0.1"})()
+        request.headers = Headers({"cf-ray": "test-ray", "cf-connecting-ip": "203.0.113.10"})
+        request.query_params = QueryParams("")
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": ""}):
+            with self.assertRaises(Exception):
+                app.require_dashboard_access(request)
+
+        request.query_params = QueryParams("token=secret")
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
+            app.require_dashboard_access(request)
+
     def test_profiles_endpoint_uses_dashboard_access_policy(self):
         from fastapi.testclient import TestClient
         import app
@@ -1095,6 +1132,40 @@ class DeploymentScriptTests(unittest.TestCase):
             self.assertIn('"--power-limit=115"', miner_service)
             self.assertIn('"--lock-gpu-clocks=1450,1450"', miner_service)
             self.assertNotIn("nvidia-settings", miner_service)
+
+    def test_benchmark_dry_run_builds_both_miner_commands(self):
+        repo = Path.cwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            alpha = Path(tmp) / "alpha-miner"
+            srb = Path(tmp) / "SRBMiner-MULTI"
+            alpha.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            srb.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            alpha.chmod(0o755)
+            srb.chmod(0o755)
+            config_file = Path(tmp) / "config.env"
+            self._write_minimal_config(config_file, wallet="prl1benchwallet")
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PEARL_CONFIG": str(config_file),
+                    "ALPHA_MINER_EXEC": str(alpha),
+                    "SRBMINER_EXEC": str(srb),
+                }
+            )
+            result = subprocess.run(
+                [str(repo / "benchmark_miners.sh"), "--dry-run", "--duration", "60", "--yes"],
+                cwd=repo,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("alpha-miner:", result.stdout)
+            self.assertIn("SRBMiner:", result.stdout)
+            self.assertIn("--pool stratum+tcp://sg1.alphapool.tech:5566", result.stdout)
+            self.assertIn("--algorithm pearlhash", result.stdout)
+            self.assertIn("--wallet prl1benchwallet.Rig", result.stdout)
 
     def test_dry_run_uses_config_file_for_oc_profiles(self):
         repo = Path.cwd()

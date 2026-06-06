@@ -47,6 +47,11 @@ STARTUP_ERRORS: list[str] = []
 
 
 def _is_local_client(request: Request) -> bool:
+    # Cloudflare Tunnel reaches the app from localhost, but the request is
+    # internet-originated. Treat Cloudflare-marked requests as remote so the
+    # dashboard/control token policy still applies.
+    if any(request.headers.get(name) for name in ("cf-ray", "cf-connecting-ip", "cf-access-jwt-assertion")):
+        return False
     host = request.client.host if request.client else ""
     if host in {"localhost", "testclient"}:
         return True

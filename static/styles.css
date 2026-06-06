@@ -999,6 +999,38 @@ body.is-loading .chart-wrap::before {
     font-weight: 600;
 }
 
+.control-help {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.control-help div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+}
+
+.control-help strong,
+.control-help span {
+    display: block;
+}
+
+.control-help strong {
+    margin-bottom: 4px;
+    color: #1e3a8a;
+    font-size: 12px;
+}
+
+.control-help span {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .terminal-panel {
     width: 100%;
     padding: 0;
@@ -1388,7 +1420,8 @@ body[data-running="false"] .side-status-value {
     .status-strip,
     .compare-grid,
     .button-row,
-    .profile-grid {
+    .profile-grid,
+    .control-help {
         grid-template-columns: 1fr;
     }
 
