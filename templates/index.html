@@ -3,272 +3,966 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pearl Miner Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Pearl Miner Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="/favicon.ico">
     <link rel="stylesheet" href="/static/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
-<body>
-    <div class="app-container">
-        <!-- Sidebar -->
+<body class="is-loading">
+    <div class="boot-loader" id="bootLoader" role="status" aria-live="polite">
+        <div class="loader-ring"></div>
+        <div>
+            <strong>Đang kết nối Pearl Miner</strong>
+            <span>Đồng bộ dữ liệu live...</span>
+        </div>
+    </div>
+    <div class="shell">
         <aside class="sidebar">
-            <div class="logo">
-                <div class="logo-icon">⛏️</div>
-                <div class="logo-text">
-                    <h2>PearlMiner</h2>
-                    <p>AI Pipeline v3.0</p>
+            <div class="brand">
+                <div class="brand-mark">P</div>
+                <div>
+                    <div class="brand-name">PearlMiner</div>
+                    <div class="brand-sub">AlphaPool Control</div>
                 </div>
             </div>
-            <nav class="nav-menu">
-                <div class="nav-section">CHÍNH</div>
-                <a href="#" class="nav-item active">
-                    <span class="icon">📊</span> Tổng quan
+            <nav class="nav" aria-label="Admin navigation">
+                <a class="nav-link active" href="#overview" data-view="overview">
+                    <span class="nav-icon">⌁</span><span class="nav-text">Tổng quan</span>
                 </a>
-                <a href="#" class="nav-item">
-                    <span class="icon">⚙️</span> Cấu hình GPU
+                <a class="nav-link" href="#finance" data-view="finance">
+                    <span class="nav-icon">$</span><span class="nav-text">Tài chính</span>
                 </a>
-                <a href="#" class="nav-item">
-                    <span class="icon">📈</span> Lịch sử Đào
+                <a class="nav-link" href="#control" data-view="control">
+                    <span class="nav-icon">⌘</span><span class="nav-text">Điều khiển</span>
                 </a>
-                
-                <div class="nav-section">TỰ ĐỘNG HOÁ</div>
-                <a href="#" class="nav-item">
-                    <span class="icon">🤖</span> Telegram Bots
-                </a>
-                <a href="#" class="nav-item">
-                    <span class="icon">🛡️</span> Watchdog
+                <a class="nav-link" href="#terminal" data-view="terminal">
+                    <span class="nav-icon">▣</span><span class="nav-text">Terminal</span>
                 </a>
             </nav>
+            <div class="side-status">
+                <div class="side-status-label">Miner service</div>
+                <div class="side-status-value" id="sideStatus">N/A</div>
+                <div class="side-status-note" id="sideService">pearl-miner.service</div>
+            </div>
         </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <div class="header-left">
-                    <h1>Tổng quan</h1>
-                    <div class="search-bar">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" placeholder="Tìm kiếm... (⌘K)">
-                    </div>
+        <main class="main">
+            <header class="topbar">
+                <div>
+                    <h1 id="pageTitle">Tổng quan</h1>
+                    <p id="lastUpdated">Đang kết nối backend...</p>
                 </div>
-                <div class="header-right">
-                    <button class="btn btn-primary" onclick="controlMiner('start')">🚀 Khởi động Máy</button>
-                    <button class="btn btn-danger" onclick="controlMiner('stop')">🛑 Dừng Máy</button>
-                    <button class="btn btn-warning" onclick="controlMiner('oc')">⚡ Ép Xung Tự Động</button>
-                    <button class="btn btn-icon">🌙</button>
-                    <button class="btn btn-icon">🔔</button>
-                    <div class="user-avatar">QT</div>
+                <div class="top-actions">
+                    <div class="live-chip" id="liveChip" data-state="loading">
+                        <span class="live-dot"></span>
+                        <span id="liveState">Connecting</span>
+                    </div>
+                    <div class="pool-pill" id="poolHashrate">AlphaPool: N/A</div>
+                    <button class="icon-button" id="refreshButton" type="button" title="Refresh" onclick="refreshAll(true)">↻</button>
+                    <div class="avatar" title="NTD Rig">NTD</div>
                 </div>
             </header>
 
-            <!-- Dashboard Content -->
-            <div class="dashboard-content">
-                <div class="status-text">Cập nhật lúc <span id="current-time">--:--</span></div>
-                
-                <!-- Cards Row -->
-                <div class="cards-grid">
-                    <div class="card">
-                        <div class="card-title">Tốc độ Đào (Hashrate)</div>
-                        <div class="card-value" id="hashrate">-- TH/s</div>
-                        <div class="card-badge success">Ổn định</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Nhiệt độ GPU</div>
-                        <div class="card-value" id="temp">-- °C</div>
-                        <div class="card-badge warning">Cảnh báo > 80°C</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Điện năng tiêu thụ</div>
-                        <div class="card-value" id="power">-- W</div>
-                        <div class="card-badge success">Tiết kiệm 32%</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">VRAM Sử dụng</div>
-                        <div class="card-value" id="vram">-- GB</div>
-                        <div class="card-badge">Tối ưu AI</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Pearl Hôm nay</div>
-                        <div class="card-value text-primary">3.7 PRL</div>
-                        <div class="card-badge success">+15%</div>
-                    </div>
-                </div>
-
-                <!-- Pipeline Pipeline AI -->
-                <div class="pipeline-section">
-                    <div class="pipeline-header">
+            <section class="dashboard-view" id="overview" data-view="overview">
+                <section class="status-strip" aria-label="Trạng thái admin console">
+                    <article class="status-card" id="apiStateCard" data-state="loading">
+                        <span class="status-dot"></span>
                         <div>
-                            <h3>Phiễu Pipeline Khai thác AI</h3>
-                            <p>Toàn bộ quy trình giải mã ma trận - cập nhật theo thời gian thực</p>
+                            <strong id="apiStateTitle">API đang tải</strong>
+                            <small id="apiStateDetail">Chờ phản hồi backend</small>
                         </div>
-                        <div class="pipeline-status">
-                            <span class="dot"></span> <span id="sys-status">Đang chạy</span>
+                    </article>
+                    <article class="status-card" id="minerStateCard" data-state="loading">
+                        <span class="status-dot"></span>
+                        <div>
+                            <strong id="minerStateTitle">Miner đang kiểm tra</strong>
+                            <small id="minerStateDetail">systemd/process chưa đồng bộ</small>
                         </div>
-                    </div>
-                    <div class="pipeline-steps">
-                        <div class="step">
-                            <div class="step-value">GPU 0</div>
-                            <div class="step-label">RTX 3060</div>
+                    </article>
+                    <article class="status-card" id="poolStateCard" data-state="loading">
+                        <span class="status-dot"></span>
+                        <div>
+                            <strong id="poolStateTitle">Pool đang tải</strong>
+                            <small id="poolStateDetail">AlphaPool chưa có dữ liệu mới</small>
                         </div>
-                        <div class="step">
-                            <div class="step-value">NoisyGEMM</div>
-                            <div class="step-label">Thuật toán</div>
+                    </article>
+                    <article class="status-card" id="logStateCard" data-state="loading">
+                        <span class="status-dot"></span>
+                        <div>
+                            <strong id="logStateTitle">Logs đang kết nối</strong>
+                            <small id="logStateDetail">journalctl stream đang mở</small>
                         </div>
-                        <div class="step active">
-                            <div class="step-value">1450 MHz</div>
-                            <div class="step-label">Core Clock</div>
-                        </div>
-                        <div class="step">
-                            <div class="step-value">+1000 MHz</div>
-                            <div class="step-label">Memory Clock</div>
-                        </div>
-                        <div class="step success">
-                            <div class="step-value">115W</div>
-                            <div class="step-label">Power Limit</div>
-                        </div>
-                    </div>
-                </div>
+                    </article>
+                </section>
 
-                <!-- Chart & Logs Row -->
-                <div class="bottom-grid">
-                    <!-- Chart -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>Sản lượng 7 ngày</h3>
-                            <p>Tổng: 25.7 PRL - Doanh thu dự kiến: $5.40</p>
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="mainChart"></canvas>
-                        </div>
-                    </div>
+                <section class="widgets">
+                    <article class="metric">
+                        <div class="metric-label">Hashrate</div>
+                        <div class="metric-value" id="hashrate">N/A</div>
+                        <div class="metric-foot" id="hashrateFoot">AlphaPool 1h/live</div>
+                    </article>
+                    <article class="metric">
+                        <div class="metric-label">Nhiệt độ</div>
+                        <div class="metric-value" id="temp">N/A</div>
+                        <div class="metric-foot" id="tempFoot">Ngưỡng bảo vệ 80°C</div>
+                    </article>
+                    <article class="metric">
+                        <div class="metric-label">Điện năng</div>
+                        <div class="metric-value" id="power">N/A</div>
+                        <div class="metric-foot" id="fan">Fan N/A</div>
+                    </article>
+                    <article class="metric">
+                        <div class="metric-label">VRAM</div>
+                        <div class="metric-value" id="vram">N/A</div>
+                        <div class="metric-foot" id="gpuName">RTX 3060</div>
+                    </article>
+                    <article class="metric">
+                        <div class="metric-label">Coin hôm nay</div>
+                        <div class="metric-value" id="coinToday">N/A</div>
+                        <div class="metric-foot" id="revenue24">24h estimate N/A</div>
+                    </article>
+                </section>
 
-                    <!-- Terminal Logs -->
-                    <div class="terminal-card">
-                        <div class="terminal-header">
-                            <h3>Cảnh báo & Sự kiện (Live Terminal)</h3>
-                            <span class="text-xs">Log hệ thống SRBMiner</span>
+                <section class="hash-compare">
+                    <article class="panel compare-panel">
+                        <div class="panel-head compact">
+                            <div>
+                                <h2>Local vs Pool</h2>
+                                <p id="compareUpdated">Sẵn sàng nhận local hashrate khi API bổ sung field.</p>
+                            </div>
                         </div>
-                        <div class="terminal-body" id="terminal-logs">
-                            <!-- Logs will stream here -->
-                            <div class="log-line success">• Hệ thống Web Dashboard đã sẵn sàng.</div>
-                            <div class="log-line info">• Đang kết nối tới pearl-miner.service...</div>
+                        <div class="compare-grid">
+                            <div class="compare-item">
+                                <span>Local miner</span>
+                                <strong id="localHashrate">Chưa có field</strong>
+                                <small id="localHashrateFoot">local_hashrate* / local.hashrate_label</small>
+                            </div>
+                            <div class="compare-item">
+                                <span>Pool reported</span>
+                                <strong id="poolMinerHashrate">N/A</strong>
+                                <small id="poolMinerHashrateFoot">AlphaPool worker/miner API</small>
+                            </div>
+                            <div class="compare-item">
+                                <span>Delta</span>
+                                <strong id="hashrateDelta">N/A</strong>
+                                <small id="hashrateDeltaFoot">Chờ đủ local + pool</small>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="grid-two">
+                    <article class="panel chart-panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Sản lượng Pearl</h2>
+                                <p>Tích lũy và sản lượng theo ngày từ PostgreSQL</p>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="rewardChart"></canvas>
+                        </div>
+                    </article>
+
+                    <article class="panel chart-panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Hardware 24h</h2>
+                                <p>Hashrate và nhiệt độ từ bảng hardware_logs</p>
+                            </div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="hardwareChart"></canvas>
+                        </div>
+                    </article>
+                </section>
+            </section>
+
+            <section class="dashboard-view" id="finance" data-view="finance" hidden>
+                <section class="finance-dashboard">
+                    <article class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Số dư & Quy đổi</h2>
+                                <p id="priceSource">Nguồn giá: N/A</p>
+                            </div>
+                        </div>
+                        <dl class="finance-list">
+                            <dt>Pending PRL</dt><dd id="balancePrl">N/A</dd>
+                            <dt>USD</dt><dd id="balanceUsd">N/A</dd>
+                            <dt>VNĐ</dt><dd id="balanceVnd">N/A</dd>
+                            <dt>Shares 24h</dt><dd id="shares24">N/A</dd>
+                            <dt>Workers</dt><dd id="workers">N/A</dd>
+                        </dl>
+                        <div class="assessment" id="assessment">Đang tải phân tích...</div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>AlphaPool</h2>
+                                <p id="poolUpdated">Đang tải mạng lưới...</p>
+                            </div>
+                        </div>
+                        <dl class="detail-list">
+                            <dt>Pool hashrate</dt><dd id="poolHashDetail">N/A</dd>
+                            <dt>Network</dt><dd id="networkHash">N/A</dd>
+                            <dt>Reward</dt><dd id="poolReward">N/A</dd>
+                            <dt>Fee</dt><dd id="poolFee">N/A</dd>
+                            <dt>Blocks 24h</dt><dd id="poolBlocks">N/A</dd>
+                            <dt>Mode</dt><dd id="poolMode">N/A</dd>
+                        </dl>
+                    </article>
+                </section>
+
+                <article class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Workers</h2>
+                            <p>Trạng thái worker từ AlphaPool</p>
                         </div>
                     </div>
-                </div>
-            </div>
+                    <div class="worker-table-wrap">
+                        <table class="worker-table">
+                            <thead>
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Live</th>
+                                    <th>1h</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workerRows">
+                                <tr><td colspan="4">Đang tải...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <section class="dashboard-view" id="control" data-view="control" hidden>
+                <section class="grid-two control-screen">
+                    <article class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Control Panel</h2>
+                                <p>Systemd và profile ép xung RTX 3060</p>
+                            </div>
+                        </div>
+                        <div class="button-row">
+                            <button class="btn primary control-action" type="button" onclick="controlMiner('start')">Bật máy</button>
+                            <button class="btn danger control-action" type="button" onclick="controlMiner('stop')">Tắt máy</button>
+                            <button class="btn neutral control-action" type="button" onclick="controlMiner('restart')">Restart</button>
+                        </div>
+                        <div class="profile-grid" id="profileGrid">
+                            <button class="profile control-action" type="button" onclick="applyProfile('eco')">
+                                <span>Eco</span><small>100W / +0 / +500</small>
+                            </button>
+                            <button class="profile recommended control-action" type="button" onclick="applyProfile('balance')">
+                                <span>Balance</span><small>115W / +200 / +1000</small>
+                            </button>
+                            <button class="profile control-action" type="button" onclick="applyProfile('max')">
+                                <span>Max</span><small>130W / +250 / +1200</small>
+                            </button>
+                        </div>
+                        <div class="action-result" id="actionResult">Sẵn sàng nhận lệnh.</div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h2>Trạng thái hệ thống</h2>
+                                <p id="systemUpdated">Đang tải systemd...</p>
+                            </div>
+                        </div>
+                        <dl class="detail-list">
+                            <dt>Service</dt><dd id="serviceNameDetail">pearl-miner.service</dd>
+                            <dt>Systemd</dt><dd id="systemState">N/A</dd>
+                            <dt>Process</dt><dd id="processState">N/A</dd>
+                            <dt>PID</dt><dd id="systemPid">N/A</dd>
+                            <dt>GPU</dt><dd id="controlGpuName">N/A</dd>
+                            <dt>Nhiệt độ</dt><dd id="controlTemp">N/A</dd>
+                        </dl>
+                    </article>
+                </section>
+            </section>
+
+            <section class="dashboard-view terminal-view" id="terminal" data-view="terminal" hidden>
+                <section class="terminal-panel">
+                    <div class="terminal-head">
+                        <div>
+                            <h2>Live Terminal</h2>
+                            <p>journalctl -u pearl-miner.service</p>
+                        </div>
+                        <span id="logState">connecting</span>
+                    </div>
+                    <pre id="terminalLog">Kết nối log stream...</pre>
+                </section>
+            </section>
         </main>
     </div>
 
+    <aside class="floating-terminal collapsed" id="floatingTerminal">
+        <button class="floating-terminal-toggle" id="terminalToggle" type="button" onclick="toggleFloatingTerminal()" aria-expanded="false">
+            <span id="floatingTerminalLabel">Terminal</span>
+            <span id="floatingLogState">connecting</span>
+        </button>
+        <pre id="floatingTerminalLog">Kết nối log stream...</pre>
+    </aside>
+
     <script>
-        // Update Time
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('current-time').innerText = now.toLocaleTimeString('vi-VN') + ' - ' + now.toLocaleDateString('vi-VN');
-        }
-        setInterval(updateTime, 1000);
-        updateTime();
+        const fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
+        const moneyUsd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+        const moneyVnd = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+        let rewardChart;
+        let hardwareChart;
+        let busy = false;
+        let controlToken = localStorage.getItem('pearlControlToken') || '';
+        let lastLogLine = '';
+        let profilesLoaded = false;
+        let actionBusy = false;
+        let firstDataRendered = false;
+        let lastLiveAt = 0;
+        let lastPollAt = 0;
+        let staleTimer;
+        const profileNames = new Map();
+        const HASHRATE_UNITS = {
+            H: 1,
+            KH: 1e3,
+            MH: 1e6,
+            GH: 1e9,
+            TH: 1e12,
+            PH: 1e15,
+            EH: 1e18
+        };
+        const viewTitles = {
+            overview: 'Tổng quan',
+            finance: 'Tài chính',
+            control: 'Điều khiển',
+            terminal: 'Terminal'
+        };
 
-        // Control API
-        function controlMiner(action) {
-            fetch(`/api/control/${action}`, {method: 'POST'})
-                .then(res => res.json())
-                .then(data => console.log(data));
-            // Thêm log ảo
-            const term = document.getElementById('terminal-logs');
-            term.innerHTML += `<div class="log-line info">• Đã gửi lệnh [${action}] tới hệ thống.</div>`;
-            term.scrollTop = term.scrollHeight;
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
         }
 
-        // Fetch Stats
-        async function fetchStats() {
-            try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                document.getElementById('hashrate').innerText = data.hashrate + ' TH/s';
-                document.getElementById('temp').innerText = data.temp + ' °C';
-                document.getElementById('power').innerText = data.power + ' W';
-                document.getElementById('vram').innerText = data.vram.toFixed(1) + ' GB';
-                document.getElementById('sys-status').innerText = data.status;
-            } catch (e) {
-                console.error(e);
+        function resetScroll() {
+            window.scrollTo(0, 0);
+        }
+
+        function n(value, digits = 2) {
+            const parsed = Number(value);
+            if (!Number.isFinite(parsed)) return 'N/A';
+            return parsed.toLocaleString('vi-VN', { maximumFractionDigits: digits });
+        }
+
+        function formatAge(timestamp) {
+            if (!timestamp) return 'chưa có dữ liệu';
+            const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+            if (seconds < 5) return 'vừa xong';
+            if (seconds < 60) return `${seconds}s trước`;
+            return `${Math.round(seconds / 60)} phút trước`;
+        }
+
+        function parseHashrate(value) {
+            if (value === null || value === undefined || value === '') return null;
+            if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+            const text = String(value).trim().replace(',', '.').toUpperCase();
+            const match = text.match(/([-+]?\d+(?:\.\d+)?)(?:\s*)([KMGTPE]?H)?/);
+            if (!match) return null;
+            const amount = Number(match[1]);
+            if (!Number.isFinite(amount)) return null;
+            const unit = match[2] || 'H';
+            return amount * (HASHRATE_UNITS[unit] || 1);
+        }
+
+        function formatHashrate(value) {
+            const hps = parseHashrate(value);
+            if (hps === null) return 'N/A';
+            const units = [
+                ['EH/s', 1e18],
+                ['PH/s', 1e15],
+                ['TH/s', 1e12],
+                ['GH/s', 1e9],
+                ['MH/s', 1e6],
+                ['KH/s', 1e3]
+            ];
+            for (const [unit, factor] of units) {
+                if (Math.abs(hps) >= factor) return `${n(hps / factor, 2)} ${unit}`;
+            }
+            return `${n(hps, 0)} H/s`;
+        }
+
+        function setText(id, value) {
+            const node = document.getElementById(id);
+            if (!node) return;
+            const nextValue = String(value);
+            if (node.textContent !== nextValue) {
+                node.textContent = nextValue;
+                if (!document.body.classList.contains('is-loading')) {
+                    node.classList.remove('value-updated');
+                    void node.offsetWidth;
+                    node.classList.add('value-updated');
+                }
             }
         }
-        setInterval(fetchStats, 5000);
-        fetchStats();
 
-        // Chart Setup
-        async function setupChart() {
-            const res = await fetch('/api/chart_data');
-            const data = await res.json();
-            
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
+        function setAction(text, isError = false) {
+            const node = document.getElementById('actionResult');
+            node.textContent = text;
+            node.classList.toggle('error', isError);
+        }
+
+        function setStatusCard(id, state, title, detail) {
+            const card = document.getElementById(id);
+            if (!card) return;
+            card.dataset.state = state;
+            setText(`${id.replace('Card', 'Title')}`, title);
+            setText(`${id.replace('Card', 'Detail')}`, detail);
+        }
+
+        function setControlsDisabled(disabled) {
+            document.querySelectorAll('.control-action').forEach(button => {
+                button.disabled = disabled;
+            });
+            document.body.classList.toggle('is-action-busy', disabled);
+        }
+
+        function finishInitialLoading() {
+            if (firstDataRendered) return;
+            firstDataRendered = true;
+            document.body.classList.remove('is-loading');
+            document.getElementById('bootLoader')?.classList.add('is-hidden');
+        }
+
+        function setLiveState(text, state = 'loading') {
+            setText('liveState', text);
+            const chip = document.getElementById('liveChip');
+            if (chip) chip.dataset.state = state;
+        }
+
+        function setupResponsiveDefaults() {
+            updateTerminalToggle();
+        }
+
+        function toggleFloatingTerminal() {
+            document.getElementById('floatingTerminal')?.classList.toggle('collapsed');
+            updateTerminalToggle();
+        }
+
+        function updateTerminalToggle() {
+            const panel = document.getElementById('floatingTerminal');
+            const button = document.getElementById('terminalToggle');
+            if (!panel || !button) return;
+            const collapsed = panel.classList.contains('collapsed');
+            button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            setText('floatingTerminalLabel', collapsed ? 'Terminal mở rộng' : 'Thu gọn terminal');
+        }
+
+        function appendLogLine(line) {
+            for (const [id, limit] of [['terminalLog', 220], ['floatingTerminalLog', 90]]) {
+                const terminal = document.getElementById(id);
+                if (!terminal) continue;
+                terminal.textContent += `\n${line}`;
+                const lines = terminal.textContent.split('\n');
+                if (lines.length > limit) terminal.textContent = lines.slice(-limit).join('\n');
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function signed(value) {
+            const parsed = Number(value || 0);
+            if (!Number.isFinite(parsed)) return '0';
+            return parsed > 0 ? `+${parsed}` : String(parsed);
+        }
+
+        function showView(view) {
+            const target = viewTitles[view] ? view : 'overview';
+            document.querySelectorAll('.dashboard-view').forEach(section => {
+                section.hidden = section.dataset.view !== target;
+                if (section.dataset.view === target) {
+                    section.classList.remove('view-enter');
+                    void section.offsetWidth;
+                    section.classList.add('view-enter');
+                }
+            });
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.view === target);
+            });
+            setText('pageTitle', viewTitles[target]);
+            if (location.hash !== `#${target}`) {
+                history.replaceState(null, '', `#${target}`);
+            }
+            if (target === 'overview') {
+                refreshCharts().catch(error => setAction(`Lỗi biểu đồ: ${error.message}`, true));
+            }
+        }
+
+        function setupNavigation() {
+            document.querySelectorAll('.nav-link[data-view]').forEach(link => {
+                link.addEventListener('click', event => {
+                    event.preventDefault();
+                    showView(link.dataset.view);
+                });
+            });
+            const initial = (location.hash || '#overview').slice(1);
+            showView(initial);
+            resetScroll();
+            window.setTimeout(resetScroll, 80);
+            window.setTimeout(resetScroll, 450);
+        }
+
+        function renderWorkers(workers) {
+            const body = document.getElementById('workerRows');
+            if (!body) return;
+            body.replaceChildren();
+            if (!Array.isArray(workers) || workers.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 4;
+                cell.textContent = 'Không có worker từ AlphaPool.';
+                row.append(cell);
+                body.append(row);
+                return;
+            }
+            for (const worker of workers) {
+                const row = document.createElement('tr');
+                const name = document.createElement('td');
+                const live = document.createElement('td');
+                const hour = document.createElement('td');
+                const state = document.createElement('td');
+                name.textContent = worker.name || worker.worker || 'N/A';
+                live.textContent = worker.hashrate_live || worker.hashrateLive || worker.liveHashrate || worker.hashrate || 'N/A';
+                hour.textContent = worker.hashrate_1h || worker.estHash1h || 'N/A';
+                const badge = document.createElement('span');
+                const isOffline = worker.online === false;
+                badge.className = isOffline ? 'state-badge offline' : 'state-badge online';
+                badge.textContent = isOffline ? 'Offline' : 'Online';
+                state.append(badge);
+                row.append(name, live, hour, state);
+                body.append(row);
+            }
+        }
+
+        function renderProfiles(profiles) {
+            const grid = document.getElementById('profileGrid');
+            const entries = Object.entries(profiles || {});
+            if (!grid || entries.length === 0) return;
+            grid.replaceChildren();
+            profileNames.clear();
+            for (const [profileId, profile] of entries) {
+                const button = document.createElement('button');
+                button.className = profileId === 'balance' ? 'profile recommended' : 'profile';
+                button.classList.add('control-action');
+                button.type = 'button';
+                button.onclick = () => applyProfile(profileId);
+                const label = document.createElement('span');
+                label.textContent = profile.label || profileId;
+                const details = document.createElement('small');
+                const clock = profile.gpu_clock_min && profile.gpu_clock_max
+                    ? ` / ${profile.gpu_clock_min}-${profile.gpu_clock_max}MHz`
+                    : '';
+                details.textContent = `${profile.power_limit ?? 0}W${clock} / ${signed(profile.core_offset)} / ${signed(profile.memory_offset)}`;
+                button.append(label, details);
+                grid.append(button);
+                profileNames.set(profileId, label.textContent);
+            }
+        }
+
+        async function jsonFetch(url, options = {}) {
+            const headers = { ...(options.headers || {}) };
+            if (controlToken && (url.startsWith('/api/control/') || url === '/api/gpu/profile')) {
+                headers.Authorization = `Bearer ${controlToken}`;
+            }
+            const response = await fetch(url, { cache: 'no-store', ...options, headers });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.detail?.error || data.detail?.stderr || data.error || `HTTP ${response.status}`);
+            return data;
+        }
+
+        async function controlFetch(url, options = {}) {
+            try {
+                return await jsonFetch(url, options);
+            } catch (error) {
+                if (String(error.message).includes('control_auth_required')) {
+                    const entered = window.prompt('CONTROL_API_TOKEN');
+                    if (entered) {
+                        controlToken = entered.trim();
+                        localStorage.setItem('pearlControlToken', controlToken);
+                        return await jsonFetch(url, options);
+                    }
+                }
+                throw error;
+            }
+        }
+
+        function renderSystem(status = {}) {
+            setText('sideStatus', status.status || 'N/A');
+            setText('sideService', status.service || 'pearl-miner.service');
+            setText('serviceNameDetail', status.service || 'pearl-miner.service');
+            setText('systemState', status.systemd_state || 'N/A');
+            setText('processState', status.process_running ? 'Đang chạy' : 'Không chạy');
+            setText('systemPid', status.pid || 'N/A');
+            setText('controlGpuName', status.gpu_name || 'N/A');
+            setText('systemUpdated', `Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+            document.body.dataset.running = status.is_active ? 'true' : 'false';
+            if (status.is_active && status.process_running) {
+                setStatusCard('minerStateCard', 'online', 'Miner online', `${status.service || 'service'} · PID ${status.pid || 'N/A'}`);
+            } else if (status.process_running) {
+                setStatusCard('minerStateCard', 'stale', 'Process còn chạy', 'systemd không active, cần kiểm tra service');
+            } else {
+                setStatusCard('minerStateCard', 'offline', 'Miner offline', status.systemd_state || 'Đã dừng');
+            }
+        }
+
+        async function refreshSystem() {
+            renderSystem(await jsonFetch('/api/system/status'));
+        }
+
+        function renderMetrics(data = {}) {
+            setText('hashrate', data.hashrate_label || `${n(data.hashrate_th, 2)} TH/s`);
+            setText('hashrateFoot', data.is_active ? 'Miner đang chạy' : 'Miner đang dừng');
+            setText('temp', Number.isFinite(Number(data.temp_c)) ? `${n(data.temp_c, 0)}°C` : 'N/A');
+            setText('tempFoot', data.temp_c >= 80 ? 'Đang vượt ngưỡng bảo vệ' : 'Nhiệt độ trong vùng kiểm soát');
+            setText('power', Number.isFinite(Number(data.power_w)) ? `${n(data.power_w, 1)} W` : 'N/A');
+            setText('fan', `Fan ${n(data.fan_speed, 0)}%`);
+            setText('vram', `${n(data.vram_gb, 2)} / ${n(data.vram_total_gb, 1)} GB`);
+            setText('gpuName', data.gpu_name || 'N/A');
+            setText('controlGpuName', data.gpu_name || 'N/A');
+            setText('controlTemp', Number.isFinite(Number(data.temp_c)) ? `${n(data.temp_c, 0)}°C` : 'N/A');
+            setText('coinToday', `${n(data.coin_today_prl, 6)} PRL`);
+            setText('revenue24', `24h: ${n(data.prediction?.prl_24h, 6)} PRL`);
+            setText('assessment', data.prediction?.assessment || 'N/A');
+            setText('lastUpdated', `Cập nhật lúc ${new Date().toLocaleString('vi-VN')}`);
+            renderHashrateCompare(data, null);
+            finishInitialLoading();
+        }
+
+        async function refreshMetrics() {
+            renderMetrics(await jsonFetch('/api/gpu/metrics'));
+        }
+
+        function renderFinance(data = {}) {
+            setText('balancePrl', `${n(data.balance_prl, 8)} PRL`);
+            setText('balanceUsd', moneyUsd.format(Number(data.balance_usd || 0)));
+            setText('balanceVnd', moneyVnd.format(Number(data.balance_vnd || 0)));
+            setText('shares24', n(data.shares24h, 0));
+            const workers = Array.isArray(data.workers) ? data.workers : [];
+            const activeWorkers = workers.filter(w => w.online !== false && (w.hashrate_live || w.hashrateLive || w.liveHashrate || w.hashrate)).length;
+            setText('workers', workers.length ? String(activeWorkers || workers.length) : 'N/A');
+            setText('priceSource', `Nguồn giá: ${data.price?.source || 'N/A'} · PRL ${moneyUsd.format(Number(data.price?.price_usd || 0))}`);
+            const poolHash = data.pool?.pool_hashrate_label || data.pool?.raw?.pool?.hashrate || data.pool?.pool_hashrate_hps;
+            setText('poolHashrate', `AlphaPool: ${poolHash || 'N/A'}`);
+            setText('poolHashDetail', String(poolHash || 'N/A'));
+            setText('networkHash', String(data.pool?.network_hashrate_label || data.pool?.raw?.coins?.[0]?.network_hash || data.pool?.network_hashrate_hps || 'N/A'));
+            setText('poolReward', `${n(data.pool?.reward_prl, 6)} PRL`);
+            setText('poolFee', `${n(data.pool?.fee_percent, 2)}%`);
+            setText('poolBlocks', n(data.pool?.blocks24h, 0));
+            setText('poolMode', data.mode || 'N/A');
+            setText('poolUpdated', `Cập nhật AlphaPool lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+            setStatusCard(
+                'poolStateCard',
+                data.available === false ? 'offline' : 'online',
+                data.available === false ? 'Pool offline' : 'Pool synced',
+                data.source_url || 'AlphaPool finance endpoint'
+            );
+            renderHashrateCompare(null, data);
+            renderWorkers(workers);
+        }
+
+        function getLocalHashrate(data = {}) {
+            const local = data.local || data.local_miner || {};
+            return (
+                data.local_hashrate_label ||
+                data.local_hashrate ||
+                data.local_hashrate_hps ||
+                local.hashrate_label ||
+                local.hashrate ||
+                local.hashrate_hps ||
+                null
+            );
+        }
+
+        function getPoolMinerHashrate(data = {}) {
+            return (
+                data.hashrate_label ||
+                data.pool_hashrate_label ||
+                data.pool_miner_hashrate_label ||
+                data.hashrate_hps ||
+                data.pool_hashrate_hps ||
+                data.pool_miner_hashrate_hps ||
+                null
+            );
+        }
+
+        function renderHashrateCompare(metricsData, financeData) {
+            window.latestMetrics = metricsData || window.latestMetrics || {};
+            window.latestFinance = financeData || window.latestFinance || {};
+            const metrics = window.latestMetrics || {};
+            const finance = window.latestFinance || {};
+            const localValue = getLocalHashrate(metrics) || getLocalHashrate(finance);
+            const poolValue = getPoolMinerHashrate(finance) || getPoolMinerHashrate(metrics);
+            const localHps = parseHashrate(localValue);
+            const poolHps = parseHashrate(poolValue);
+
+            setText('localHashrate', localHps === null ? 'Chưa có field' : formatHashrate(localHps));
+            setText('localHashrateFoot', localHps === null ? 'Placeholder cho local_hashrate*' : 'Local miner API');
+            setText('poolMinerHashrate', poolHps === null ? 'N/A' : formatHashrate(poolHps));
+            setText('poolMinerHashrateFoot', poolHps === null ? 'Chờ AlphaPool miner API' : 'Pool reported miner rate');
+
+            if (localHps === null || poolHps === null || localHps <= 0) {
+                setText('hashrateDelta', 'N/A');
+                setText('hashrateDeltaFoot', 'Chờ đủ local + pool');
+            } else {
+                const delta = poolHps - localHps;
+                const percent = (delta / localHps) * 100;
+                setText('hashrateDelta', `${delta >= 0 ? '+' : ''}${n(percent, 1)}%`);
+                setText('hashrateDeltaFoot', `${formatHashrate(Math.abs(delta))} lệch`);
+            }
+            setText('compareUpdated', `So sánh cập nhật ${new Date().toLocaleTimeString('vi-VN')}`);
+        }
+
+        async function refreshFinance() {
+            renderFinance(await jsonFetch('/api/mining/finance'));
+        }
+
+        function applyLivePayload(payload = {}) {
+            if (payload.system) renderSystem(payload.system);
+            if (payload.gpu) renderMetrics(payload.gpu);
+            if (payload.finance) renderFinance(payload.finance);
+            if (payload.timestamp) {
+                setText('lastUpdated', `Live ${new Date(payload.timestamp).toLocaleString('vi-VN')}`);
+            }
+            finishInitialLoading();
+        }
+
+        async function refreshProfiles(force = false) {
+            if (profilesLoaded && !force) return;
+            const data = await jsonFetch('/api/gpu/profiles');
+            renderProfiles(data.profiles || {});
+            profilesLoaded = true;
+        }
+
+        async function refreshCharts() {
+            const data = await jsonFetch('/api/chart_data');
+            if (!window.Chart) {
+                setAction('Chart.js chưa tải được, biểu đồ sẽ thử lại sau.', true);
+                return;
+            }
+            const rewardCtx = document.getElementById('rewardChart');
+            const hardwareCtx = document.getElementById('hardwareChart');
+            if (rewardChart) rewardChart.destroy();
+            rewardChart = new Chart(rewardCtx, {
                 data: {
-                    labels: data.labels,
+                    labels: data.labels || [],
                     datasets: [
                         {
-                            label: 'Tích lũy (Cumulative)',
-                            data: data.cumulative,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
+                            type: 'line',
+                            label: 'Tích lũy PRL',
+                            data: data.cumulative || [],
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37,99,235,.12)',
+                            tension: .35,
                             fill: true,
-                            tension: 0.4
+                            pointRadius: 2
                         },
                         {
-                            label: 'Đào trong ngày',
-                            data: data.daily,
                             type: 'bar',
-                            backgroundColor: '#10b981',
-                            borderRadius: 4
+                            label: 'PRL/ngày',
+                            data: data.daily || [],
+                            backgroundColor: '#14b8a6',
+                            borderRadius: 5
+                        }
+                    ]
+                },
+                options: chartOptions('PRL')
+            });
+
+            if (hardwareChart) hardwareChart.destroy();
+            hardwareChart = new Chart(hardwareCtx, {
+                data: {
+                    labels: data.history_labels || [],
+                    datasets: [
+                        {
+	                            type: 'line',
+	                            label: 'Hashrate TH/s',
+	                            unit: 'TH/s',
+	                            data: data.hashrate_th || [],
+                            borderColor: '#0f766e',
+                            backgroundColor: 'rgba(15,118,110,.12)',
+                            tension: .3,
+                            yAxisID: 'y'
+                        },
+                        {
+	                            type: 'line',
+	                            label: 'Nhiệt độ °C',
+	                            unit: '°C',
+	                            data: data.temp_c || [],
+                            borderColor: '#dc2626',
+                            backgroundColor: 'rgba(220,38,38,.10)',
+                            tension: .3,
+                            yAxisID: 'y1'
                         }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    },
+                    ...chartOptions('TH/s'),
                     scales: {
-                        y: { beginAtZero: true }
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                        y: { beginAtZero: true, position: 'left' },
+                        y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
                     }
                 }
             });
         }
-        setupChart();
 
-        // Stream Logs
-        async function streamLogs() {
-            try {
-                const response = await fetch('/api/logs');
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                const term = document.getElementById('terminal-logs');
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const text = decoder.decode(value, { stream: true });
-                    const lines = text.split('\n');
-                    for (let line of lines) {
-                        if (line.trim()) {
-                            term.innerHTML += `<div class="log-line">• ${line}</div>`;
-                        }
-                    }
-                    term.scrollTop = term.scrollHeight;
-                    // Keep max 100 lines
-                    while (term.children.length > 100) {
-                        term.removeChild(term.firstChild);
-                    }
+        function chartOptions(unit) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${n(ctx.parsed.y, 4)} ${ctx.dataset.unit || unit}` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.22)' } }
                 }
-            } catch (e) {
-                console.error("Log stream disconnected");
+            };
+        }
+
+        async function refreshAll(forceCharts = false) {
+            if (busy) return;
+            busy = true;
+            document.body.classList.add('is-refreshing');
+            try {
+                await Promise.all([refreshSystem(), refreshMetrics(), refreshFinance(), refreshProfiles(forceCharts)]);
+                lastPollAt = Date.now();
+                setStatusCard('apiStateCard', 'online', 'API online', `Poll ${formatAge(lastPollAt)}`);
+                if (forceCharts) await refreshCharts();
+            } catch (error) {
+                setStatusCard('apiStateCard', firstDataRendered ? 'stale' : 'offline', firstDataRendered ? 'API stale' : 'API offline', error.message);
+                setAction(`Lỗi cập nhật: ${error.message}`, true);
+            } finally {
+                busy = false;
+                document.body.classList.remove('is-refreshing');
+                finishInitialLoading();
             }
         }
-        streamLogs();
+
+        async function controlMiner(action) {
+            if (actionBusy) return;
+            actionBusy = true;
+            setControlsDisabled(true);
+            setAction(`Đang gửi lệnh ${action}...`);
+            try {
+                await controlFetch(`/api/control/${action}`, { method: 'POST' });
+                setAction(`Đã gửi lệnh ${action} thành công.`);
+                await refreshAll(false);
+            } catch (error) {
+                setAction(`Lệnh thất bại: ${error.message}`, true);
+            } finally {
+                actionBusy = false;
+                setControlsDisabled(false);
+            }
+        }
+
+        async function applyProfile(profile) {
+            if (actionBusy) return;
+            actionBusy = true;
+            setControlsDisabled(true);
+            const label = profileNames.get(profile) || profile;
+            setAction(`Đang áp dụng profile ${label}...`);
+            try {
+                await controlFetch('/api/gpu/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profile })
+                });
+                setAction(`Đã áp dụng profile ${label}.`);
+                await refreshAll(false);
+            } catch (error) {
+                setAction(`Profile thất bại: ${error.message}`, true);
+            } finally {
+                actionBusy = false;
+                setControlsDisabled(false);
+            }
+        }
+
+        function startLogs() {
+            const state = document.getElementById('logState');
+            const floatingState = document.getElementById('floatingLogState');
+            const source = new EventSource('/api/logs/stream');
+            source.onopen = () => {
+                state.textContent = 'connected';
+                floatingState.textContent = 'connected';
+                setStatusCard('logStateCard', 'online', 'Logs online', 'journalctl stream connected');
+            };
+            source.onmessage = event => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.line === lastLogLine) return;
+                    lastLogLine = data.line;
+                    appendLogLine(data.line);
+                } catch {
+                    appendLogLine(event.data);
+                }
+            };
+            source.onerror = () => {
+                state.textContent = 'reconnecting';
+                floatingState.textContent = 'reconnecting';
+                setStatusCard('logStateCard', 'stale', 'Logs reconnecting', 'SSE log stream đang thử lại');
+            };
+        }
+
+        function startLiveMetrics() {
+            const source = new EventSource('/api/live');
+            source.onopen = () => {
+                setLiveState('Live', 'online');
+                setText('lastUpdated', 'Live metrics connected');
+            };
+            source.onmessage = event => {
+                try {
+                    lastLiveAt = Date.now();
+                    setLiveState('Live', 'online');
+                    applyLivePayload(JSON.parse(event.data));
+                } catch {
+                    setLiveState('Parse error', 'stale');
+                    setText('lastUpdated', 'Live metrics parse error');
+                }
+            };
+            source.onerror = () => {
+                setLiveState(firstDataRendered ? 'Stale' : 'Offline', firstDataRendered ? 'stale' : 'offline');
+                setText('lastUpdated', 'Live metrics reconnecting...');
+            };
+        }
+
+        function watchStaleState() {
+            staleTimer = window.setInterval(() => {
+                if (lastLiveAt && Date.now() - lastLiveAt > 30000) {
+                    setLiveState('Stale', 'stale');
+                    setText('lastUpdated', `Live stale · lần cuối ${formatAge(lastLiveAt)}`);
+                }
+                if (lastPollAt && Date.now() - lastPollAt > 45000) {
+                    setStatusCard('apiStateCard', 'stale', 'API stale', `Poll cuối ${formatAge(lastPollAt)}`);
+                }
+            }, 5000);
+        }
+
+        window.addEventListener('pageshow', resetScroll);
+        setupResponsiveDefaults();
+        setupNavigation();
+        window.setTimeout(finishInitialLoading, 7000);
+        refreshAll(true);
+        setInterval(() => refreshAll(false), 15000);
+        setInterval(() => refreshCharts().catch(error => setAction(`Lỗi biểu đồ: ${error.message}`, true)), 60000);
+        startLogs();
+        startLiveMetrics();
+        watchStaleState();
     </script>
 </body>
 </html>

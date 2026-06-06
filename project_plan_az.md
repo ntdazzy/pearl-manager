@@ -6,7 +6,7 @@
 
 ## Giai đoạn 1: Chuẩn bị Môi trường Tự Động Hóa (DevOps)
 1. **Khởi tạo Systemd Services:**
-   - Tạo `pearl-miner.service` quản lý tiến trình SRBMiner.
+   - Tạo `pearl-miner.service` quản lý tiến trình miner Pearl. Bản triển khai hiện tại mặc định dùng `alpha-miner` cho AlphaPool; vẫn hỗ trợ sinh service kiểu SRBMiner nếu đặt `MINER_TYPE=srbminer`.
    - Tạo `pearl-web.service` quản lý FastAPI (Uvicorn).
    - Tạo `pearl-bot.service` quản lý Telegram Bot.
 2. **Cấu hình Phân quyền Linux (`visudo`):**
@@ -21,7 +21,7 @@
      - `[ 📊 Thống Kê ]` `[ 💰 Tra Cứu Số Dư ]`
      - `[ ⚡ Ép Xung ]` `[ 🛑 Tắt Máy ]`
 2. **Tích hợp API Đa nền tảng:**
-   - Hàm `check_balance()`: Gọi API của Luckypool để lấy số dư Pearl.
+   - Hàm `check_balance()`: Gọi API của AlphaPool để lấy số dư Pearl, có fallback parser cho payload kiểu Miningcore/Yiimp nếu pool đổi endpoint.
    - Hàm `convert_to_fiat()`: Gọi API CoinGecko lấy giá USD, sau đó nhân với tỷ giá VCB lấy giá VNĐ.
    - Hàm `predict_revenue()`: AI dự báo doanh thu cuối ngày dựa vào tốc độ Hashrate trung bình của 24h qua.
 3. **Module Vẽ Biểu Đồ (Image Generator):**

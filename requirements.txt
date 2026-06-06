@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-telegram-bot[job-queue]>=20,<22
+psycopg2-binary
+sqlalchemy>=2
+requests
+psutil
+jinja2
+matplotlib
+pydantic
