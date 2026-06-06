@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pearl Miner Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">⛏️</div>
+                <div class="logo-text">
+                    <h2>PearlMiner</h2>
+                    <p>AI Pipeline v3.0</p>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <div class="nav-section">CHÍNH</div>
+                <a href="#" class="nav-item active">
+                    <span class="icon">📊</span> Tổng quan
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="icon">⚙️</span> Cấu hình GPU
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="icon">📈</span> Lịch sử Đào
+                </a>
+                
+                <div class="nav-section">TỰ ĐỘNG HOÁ</div>
+                <a href="#" class="nav-item">
+                    <span class="icon">🤖</span> Telegram Bots
+                </a>
+                <a href="#" class="nav-item">
+                    <span class="icon">🛡️</span> Watchdog
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>Tổng quan</h1>
+                    <div class="search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" placeholder="Tìm kiếm... (⌘K)">
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-primary" onclick="controlMiner('start')">🚀 Khởi động Máy</button>
+                    <button class="btn btn-danger" onclick="controlMiner('stop')">🛑 Dừng Máy</button>
+                    <button class="btn btn-warning" onclick="controlMiner('oc')">⚡ Ép Xung Tự Động</button>
+                    <button class="btn btn-icon">🌙</button>
+                    <button class="btn btn-icon">🔔</button>
+                    <div class="user-avatar">QT</div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div class="dashboard-content">
+                <div class="status-text">Cập nhật lúc <span id="current-time">--:--</span></div>
+                
+                <!-- Cards Row -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-title">Tốc độ Đào (Hashrate)</div>
+                        <div class="card-value" id="hashrate">-- TH/s</div>
+                        <div class="card-badge success">Ổn định</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Nhiệt độ GPU</div>
+                        <div class="card-value" id="temp">-- °C</div>
+                        <div class="card-badge warning">Cảnh báo > 80°C</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Điện năng tiêu thụ</div>
+                        <div class="card-value" id="power">-- W</div>
+                        <div class="card-badge success">Tiết kiệm 32%</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">VRAM Sử dụng</div>
+                        <div class="card-value" id="vram">-- GB</div>
+                        <div class="card-badge">Tối ưu AI</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Pearl Hôm nay</div>
+                        <div class="card-value text-primary">3.7 PRL</div>
+                        <div class="card-badge success">+15%</div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Pipeline AI -->
+                <div class="pipeline-section">
+                    <div class="pipeline-header">
+                        <div>
+                            <h3>Phiễu Pipeline Khai thác AI</h3>
+                            <p>Toàn bộ quy trình giải mã ma trận - cập nhật theo thời gian thực</p>
+                        </div>
+                        <div class="pipeline-status">
+                            <span class="dot"></span> <span id="sys-status">Đang chạy</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-steps">
+                        <div class="step">
+                            <div class="step-value">GPU 0</div>
+                            <div class="step-label">RTX 3060</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-value">NoisyGEMM</div>
+                            <div class="step-label">Thuật toán</div>
+                        </div>
+                        <div class="step active">
+                            <div class="step-value">1450 MHz</div>
+                            <div class="step-label">Core Clock</div>
+                        </div>
+                        <div class="step">
+                            <div class="step-value">+1000 MHz</div>
+                            <div class="step-label">Memory Clock</div>
+                        </div>
+                        <div class="step success">
+                            <div class="step-value">115W</div>
+                            <div class="step-label">Power Limit</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart & Logs Row -->
+                <div class="bottom-grid">
+                    <!-- Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Sản lượng 7 ngày</h3>
+                            <p>Tổng: 25.7 PRL - Doanh thu dự kiến: $5.40</p>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Logs -->
+                    <div class="terminal-card">
+                        <div class="terminal-header">
+                            <h3>Cảnh báo & Sự kiện (Live Terminal)</h3>
+                            <span class="text-xs">Log hệ thống SRBMiner</span>
+                        </div>
+                        <div class="terminal-body" id="terminal-logs">
+                            <!-- Logs will stream here -->
+                            <div class="log-line success">• Hệ thống Web Dashboard đã sẵn sàng.</div>
+                            <div class="log-line info">• Đang kết nối tới pearl-miner.service...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Update Time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').innerText = now.toLocaleTimeString('vi-VN') + ' - ' + now.toLocaleDateString('vi-VN');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Control API
+        function controlMiner(action) {
+            fetch(`/api/control/${action}`, {method: 'POST'})
+                .then(res => res.json())
+                .then(data => console.log(data));
+            // Thêm log ảo
+            const term = document.getElementById('terminal-logs');
+            term.innerHTML += `<div class="log-line info">• Đã gửi lệnh [${action}] tới hệ thống.</div>`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // Fetch Stats
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('hashrate').innerText = data.hashrate + ' TH/s';
+                document.getElementById('temp').innerText = data.temp + ' °C';
+                document.getElementById('power').innerText = data.power + ' W';
+                document.getElementById('vram').innerText = data.vram.toFixed(1) + ' GB';
+                document.getElementById('sys-status').innerText = data.status;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        setInterval(fetchStats, 5000);
+        fetchStats();
+
+        // Chart Setup
+        async function setupChart() {
+            const res = await fetch('/api/chart_data');
+            const data = await res.json();
+            
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Tích lũy (Cumulative)',
+                            data: data.cumulative,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Đào trong ngày',
+                            data: data.daily,
+                            type: 'bar',
+                            backgroundColor: '#10b981',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+        setupChart();
+
+        // Stream Logs
+        async function streamLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                const term = document.getElementById('terminal-logs');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const text = decoder.decode(value, { stream: true });
+                    const lines = text.split('\n');
+                    for (let line of lines) {
+                        if (line.trim()) {
+                            term.innerHTML += `<div class="log-line">• ${line}</div>`;
+                        }
+                    }
+                    term.scrollTop = term.scrollHeight;
+                    // Keep max 100 lines
+                    while (term.children.length > 100) {
+                        term.removeChild(term.firstChild);
+                    }
+                }
+            } catch (e) {
+                console.error("Log stream disconnected");
+            }
+        }
+        streamLogs();
+    </script>
+</body>
+</html>
