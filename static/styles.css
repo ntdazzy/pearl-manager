@@ -230,6 +230,10 @@ body:not(.is-loading) .boot-loader {
     min-width: 0;
 }
 
+.mobile-miner-banner {
+    display: none;
+}
+
 .live-chip {
     min-height: 34px;
     display: inline-flex;
@@ -503,6 +507,40 @@ body.is-refreshing #refreshButton {
 .status-card[data-state="offline"] .status-dot {
     background: #ef4444;
     box-shadow: 0 0 0 5px rgba(239, 68, 68, .12);
+}
+
+.mobile-miner-dot {
+    flex: 0 0 auto;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #f59e0b;
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, .14);
+}
+
+.mobile-miner-banner[data-state="online"] {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.mobile-miner-banner[data-state="online"] .mobile-miner-dot {
+    background: var(--ok);
+    box-shadow: 0 0 0 5px rgba(22, 163, 74, .13);
+}
+
+.mobile-miner-banner[data-state="stale"] {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.mobile-miner-banner[data-state="offline"] {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.mobile-miner-banner[data-state="offline"] .mobile-miner-dot {
+    background: #ef4444;
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, .13);
 }
 
 .metric,
@@ -1412,6 +1450,38 @@ body[data-running="false"] .side-status-value {
         min-width: 0;
         white-space: normal;
         min-height: 42px;
+    }
+
+    .mobile-miner-banner {
+        width: 100%;
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+    }
+
+    .mobile-miner-banner strong,
+    .mobile-miner-banner small {
+        display: block;
+        min-width: 0;
+    }
+
+    .mobile-miner-banner strong {
+        font-size: 15px;
+        line-height: 1.25;
+    }
+
+    .mobile-miner-banner small {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
     }
 
     .widgets,

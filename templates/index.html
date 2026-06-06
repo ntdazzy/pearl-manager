@@ -8,6 +8,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#0b1220">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PearlMiner">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
@@ -63,6 +69,13 @@
                     <div class="pool-pill" id="poolHashrate">AlphaPool: N/A</div>
                     <button class="icon-button" id="refreshButton" type="button" title="Làm mới" onclick="refreshAll(true)">↻</button>
                     <div class="avatar" title="Máy NTD">NTD</div>
+                </div>
+                <div class="mobile-miner-banner" id="mobileMinerBanner" data-state="loading" role="status" aria-live="polite">
+                    <span class="mobile-miner-dot"></span>
+                    <div>
+                        <strong id="mobileMinerTitle">Đang kiểm tra máy đào</strong>
+                        <small id="mobileMinerDetail">Chờ máy gửi tình trạng mới nhất</small>
+                    </div>
                 </div>
             </header>
 
@@ -636,6 +649,13 @@
             setText(`${id.replace('Card', 'Detail')}`, detail);
         }
 
+        function setMobileMinerState(state, title, detail) {
+            const banner = document.getElementById('mobileMinerBanner');
+            if (banner) banner.dataset.state = state;
+            setText('mobileMinerTitle', title);
+            setText('mobileMinerDetail', detail);
+        }
+
         function compactError(error) {
             return error?.message || String(error || 'unknown_error');
         }
@@ -1041,18 +1061,22 @@
             document.body.dataset.running = status.is_active ? 'true' : 'false';
             if (status.is_active && status.process_running) {
                 setStatusCard('minerStateCard', 'online', 'Máy đào đang chạy', `Mã chạy ${status.pid || 'N/A'}`);
+                setMobileMinerState('online', 'Đang đào Pearl', `Máy đang chạy · mã ${status.pid || 'N/A'}`);
                 setPanelState('controlState', 'ok', 'Máy đào đang chạy ổn. Có thể đổi mức điện hoặc khởi động lại nếu cần.');
                 setCardState('controlReadinessCard', 'ok');
                 setText('controlReadiness', 'Sẵn sàng');
                 setText('controlReadinessDetail', `Mã chạy ${status.pid || 'N/A'} · đang bật`);
             } else if (status.process_running) {
                 setStatusCard('minerStateCard', 'stale', 'Trạng thái chưa khớp', 'Máy còn chạy nhưng hệ thống báo chưa bật');
+                setMobileMinerState('stale', 'Cần kiểm tra', `Máy còn chạy · mã ${status.pid || 'N/A'}`);
                 setPanelState('controlState', 'warn', 'Máy đào vẫn còn chạy, nhưng hệ thống chưa nhận là đang bật. Nên kiểm tra trước khi khởi động lại.');
                 setCardState('controlReadinessCard', 'warn');
                 setText('controlReadiness', 'Cần kiểm tra');
                 setText('controlReadinessDetail', `Mã chạy ${status.pid || 'N/A'} · trạng thái chưa khớp`);
             } else {
-                setStatusCard('minerStateCard', 'offline', 'Máy đào đang dừng', status.systemd_state === 'failed' ? 'Có lỗi khi chạy' : 'Có thể bật lại khi sẵn sàng');
+                const stoppedDetail = status.systemd_state === 'failed' ? 'Có lỗi khi chạy' : 'Có thể bật lại khi sẵn sàng';
+                setStatusCard('minerStateCard', 'offline', 'Máy đào đang dừng', stoppedDetail);
+                setMobileMinerState('offline', status.systemd_state === 'failed' ? 'Máy đào bị lỗi' : 'Đang dừng', stoppedDetail);
                 setPanelState('controlState', 'warn', 'Máy đào đang dừng. Có thể bật lại bằng nút Bật máy nếu cấu hình đã đúng.');
                 setCardState('controlReadinessCard', 'warn');
                 setText('controlReadiness', 'Đang dừng');
@@ -1567,6 +1591,11 @@
         }
 
         window.addEventListener('pageshow', resetScroll);
+        if ('serviceWorker' in navigator && window.isSecureContext) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+            });
+        }
         setupResponsiveDefaults();
         setupNavigation();
         window.setTimeout(finishInitialLoading, 7000);

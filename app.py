@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -44,6 +44,7 @@ class ProfileRequest(BaseModel):
 
 background_tasks: set[asyncio.Task[Any]] = set()
 STARTUP_ERRORS: list[str] = []
+CONTROL_COOKIE_NAME = "pearl_control_token"
 
 
 def _is_local_client(request: Request) -> bool:
@@ -69,8 +70,29 @@ def _request_token(request: Request) -> str:
         request.headers.get("x-pearl-control-token")
         or request.headers.get("x-pearl-token")
         or request.query_params.get("token")
+        or request.cookies.get(CONTROL_COOKIE_NAME)
         or ""
     ).strip()
+
+
+def _is_https_request(request: Request) -> bool:
+    forwarded = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    cf_visitor = request.headers.get("cf-visitor", "").lower()
+    return request.url.scheme == "https" or forwarded == "https" or '"scheme":"https"' in cf_visitor
+
+
+def _remember_control_token(request: Request, response: Response) -> None:
+    token = load_config().get("CONTROL_API_TOKEN", "").strip()
+    supplied = _request_token(request)
+    if token and supplied == token:
+        response.set_cookie(
+            CONTROL_COOKIE_NAME,
+            supplied,
+            max_age=60 * 60 * 24 * 365,
+            httponly=True,
+            secure=_is_https_request(request),
+            samesite="lax",
+        )
 
 
 def require_control_access(request: Request) -> None:
@@ -165,7 +187,9 @@ async def generic_exception_handler(request: Request, exc: Exception):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     require_dashboard_access(request)
-    return templates.TemplateResponse(request=request, name="index.html", context={})
+    response = templates.TemplateResponse(request=request, name="index.html", context={})
+    _remember_control_token(request, response)
+    return response
 
 
 @app.get("/favicon.ico")
@@ -178,6 +202,16 @@ def favicon() -> Response:
         "</svg>"
     )
     return Response(svg, media_type="image/svg+xml")
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> FileResponse:
+    return FileResponse(static_dir / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/service-worker.js")
+def service_worker() -> FileResponse:
+    return FileResponse(static_dir / "service-worker.js", media_type="application/javascript")
 
 
 def _finance_payload(miner: dict[str, Any] | None = None, price: dict[str, Any] | None = None) -> dict[str, Any]:

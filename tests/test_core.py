@@ -845,6 +845,25 @@ class FrontendTests(unittest.TestCase):
         for marker in ["@keyframes shimmer", "@keyframes viewIn", "@media (max-width: 760px)", "prefers-reduced-motion"]:
             self.assertIn(marker, css)
 
+    def test_dashboard_has_mobile_miner_status_banner(self):
+        html = Path("templates/index.html").read_text(encoding="utf-8")
+        css = Path("static/styles.css").read_text(encoding="utf-8")
+        for marker in ["mobileMinerBanner", "mobileMinerTitle", "mobileMinerDetail", "setMobileMinerState", "Đang đào Pearl"]:
+            self.assertIn(marker, html)
+        for marker in [".mobile-miner-banner", ".mobile-miner-banner[data-state=\"online\"]", ".mobile-miner-banner[data-state=\"offline\"]"]:
+            self.assertIn(marker, css)
+
+    def test_dashboard_is_installable_pwa(self):
+        html = Path("templates/index.html").read_text(encoding="utf-8")
+        manifest = Path("static/manifest.webmanifest").read_text(encoding="utf-8")
+        worker = Path("static/service-worker.js").read_text(encoding="utf-8")
+        for marker in ['rel="manifest"', "apple-touch-icon", "theme-color", "serviceWorker.register('/service-worker.js')"]:
+            self.assertIn(marker, html)
+        for marker in ['"display": "standalone"', '"start_url": "/"', "pearl-192.png", "pearl-512.png"]:
+            self.assertIn(marker, manifest)
+        for marker in ["CACHE_NAME", "APP_SHELL", "url.pathname.startsWith('/api/')", "event.respondWith(fetch(request))"]:
+            self.assertIn(marker, worker)
+
     def test_dashboard_inline_script_can_be_extracted(self):
         html = Path("templates/index.html").read_text(encoding="utf-8")
         scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
@@ -867,7 +886,9 @@ class ApiTests(unittest.TestCase):
         import app
 
         client = TestClient(app.app)
-        response = client.post("/api/control/invalid")
+        token = app.load_config().get("CONTROL_API_TOKEN", "").strip()
+        headers = {"x-pearl-control-token": token} if token else {}
+        response = client.post("/api/control/invalid", headers=headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn("application/json", response.headers["content-type"])
 
@@ -879,6 +900,33 @@ class ApiTests(unittest.TestCase):
         response = client.get("/api/health")
         self.assertEqual(response.headers["x-content-type-options"], "nosniff")
         self.assertEqual(response.headers["x-frame-options"], "DENY")
+
+    def test_pwa_assets_are_served_from_root_scope(self):
+        from fastapi.testclient import TestClient
+        import app
+
+        client = TestClient(app.app)
+        manifest = client.get("/manifest.webmanifest")
+        worker = client.get("/service-worker.js")
+        self.assertEqual(manifest.status_code, 200)
+        self.assertIn("application/manifest+json", manifest.headers["content-type"])
+        self.assertEqual(worker.status_code, 200)
+        self.assertIn("application/javascript", worker.headers["content-type"])
+
+    def test_dashboard_remembers_token_for_installed_pwa(self):
+        from fastapi.testclient import TestClient
+        import app
+
+        token = app.load_config().get("CONTROL_API_TOKEN", "").strip()
+        if not token:
+            self.skipTest("CONTROL_API_TOKEN is not configured")
+        client = TestClient(app.app)
+        first = client.get(f"/?token={token}", headers={"x-forwarded-proto": "https"})
+        self.assertEqual(first.status_code, 200)
+        self.assertIn("pearl_control_token=", first.headers.get("set-cookie", ""))
+        self.assertIn("Secure", first.headers.get("set-cookie", ""))
+        second = client.get("/")
+        self.assertEqual(second.status_code, 200)
 
     def test_control_requires_token_for_non_local_request(self):
         from starlette.datastructures import Headers, QueryParams

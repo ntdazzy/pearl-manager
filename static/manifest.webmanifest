@@ -1,0 +1,26 @@
+{
+  "name": "Pearl Miner Manager",
+  "short_name": "PearlMiner",
+  "description": "Bảng điều khiển máy đào Pearl trên điện thoại.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2f7",
+  "theme_color": "#0b1220",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/static/icons/pearl-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/pearl-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
