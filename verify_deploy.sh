@@ -162,10 +162,20 @@ local_finance_shape() {
   curl -fsS "http://127.0.0.1:${WEB_PORT}/api/mining/finance" | grep -q 'balance_prl'
 }
 
+local_admin_snapshot_shape() {
+  curl -fsS "http://127.0.0.1:${WEB_PORT}/api/admin/snapshot" | grep -q 'effective_hashrate'
+}
+
+local_admin_events_shape() {
+  curl -fsS "http://127.0.0.1:${WEB_PORT}/api/admin/events?limit=5" | grep -q 'events'
+}
+
 check_warn "local web security headers" local_web_security_headers
 check_warn "local API validation errors are JSON" local_api_validation_json
 check_warn "local GPU metrics API shape" local_gpu_metrics_shape
 check_warn "local finance API shape" local_finance_shape
+check_warn "local admin snapshot API shape" local_admin_snapshot_shape
+check_warn "local admin events API shape" local_admin_events_shape
 
 echo "================================================="
 if [[ "$FAILURES" -eq 0 ]]; then

@@ -448,15 +448,44 @@ class ServiceParsingTests(unittest.TestCase):
     def test_estimate_revenue_zeroes_stale_pool_hashrate_when_service_stopped(self):
         import miner_services
 
-        with patch.object(miner_services, "fetch_pool_miner_stats", return_value={"hashrate_hps": 10e12}), \
-            patch.object(miner_services, "fetch_pool_summary", return_value={"network_hashrate_hps": 100e12, "reward_prl": 100, "block_time_seconds": 100, "fee_percent": 0}), \
-            patch.object(miner_services, "fetch_price", return_value={"price_usd": 1.0, "price_vnd": 25000.0}), \
+        with patch.object(miner_services, "fetch_pool_miner_stats", return_value={"available": True, "hashrate_hps": 10e12}), \
+            patch.object(miner_services, "fetch_pool_summary", return_value={"available": True, "network_hashrate_hps": 100e12, "reward_prl": 100, "block_time_seconds": 100, "fee_percent": 0}), \
+            patch.object(miner_services, "fetch_price", return_value={"available": True, "price_usd": 1.0, "price_vnd": 25000.0}), \
             patch.object(miner_services, "get_gpu_metrics", return_value={"temp_c": 50}), \
+            patch.object(miner_services, "get_local_miner_stats", return_value={"available": True, "hashrate_hps": 25e12, "stale": False}), \
             patch.object(miner_services, "get_miner_status", return_value={"is_active": False, "process_running": False}):
             prediction = miner_services.estimate_revenue({})
 
         self.assertEqual(prediction["prl_24h"], 0.0)
         self.assertIn("Miner đang dừng", prediction["assessment"])
+
+    def test_local_miner_journal_parser_extracts_hashrate_and_shares(self):
+        import miner_services
+
+        log = (
+            "2026-06-06T10:15:45.336Z level=INFO gpu=0 component=miner status attempts=1680 hits=350 "
+            "hashrate_th_s=24.30 tmac_s=24.30 share_equiv_th_s=20.37\n"
+            "2026-06-06T10:15:50.106Z level=INFO gpu=0 component=share submitted job=1\n"
+        )
+        stats = miner_services.parse_local_miner_journal(log, stale_after=999999)
+        self.assertTrue(stats["available"])
+        self.assertAlmostEqual(stats["hashrate_hps"], 24.30e12)
+        self.assertAlmostEqual(stats["share_equiv_hps"], 20.37e12)
+        self.assertEqual(stats["submitted_shares"], 1)
+
+    def test_snapshot_prefers_fresh_local_hashrate_over_pool(self):
+        import miner_services
+
+        with patch.object(miner_services, "get_gpu_metrics", return_value={"temp_c": 60}), \
+            patch.object(miner_services, "get_miner_status", return_value={"is_active": True, "process_running": True}), \
+            patch.object(miner_services, "get_local_miner_stats", return_value={"available": True, "hashrate_hps": 24e12, "stale": False}), \
+            patch.object(miner_services, "fetch_pool_miner_stats", return_value={"available": True, "hashrate_hps": 5e12, "balance_prl": 1.0}), \
+            patch.object(miner_services, "fetch_pool_summary", return_value={"available": True, "network_hashrate_hps": 100e12, "reward_prl": 100, "block_time_seconds": 100, "fee_percent": 0}), \
+            patch.object(miner_services, "fetch_price", return_value={"available": True, "price_usd": 1.0, "price_vnd": 25000.0}):
+            snapshot = miner_services.collect_telemetry_snapshot({"SNAPSHOT_CACHE_SECONDS": "0"}, use_cache=False)
+
+        self.assertEqual(snapshot["effective_hashrate"]["source"], "local")
+        self.assertAlmostEqual(snapshot["effective_hashrate"]["hashrate_hps"], 24e12)
 
 
 class WatchdogTests(unittest.IsolatedAsyncioTestCase):
@@ -491,19 +520,42 @@ class WatchdogTests(unittest.IsolatedAsyncioTestCase):
         control.assert_called_with("stop", unittest.mock.ANY)
         context.bot.send_message.assert_awaited()
 
-    async def test_zero_hash_watchdog_stops_miner(self):
+    async def test_zero_hash_watchdog_alerts_without_stopping_by_default(self):
         import telegram_bot
 
         context = type("Ctx", (), {"bot": type("Bot", (), {"send_message": AsyncMock()})()})()
         sample = {
             "gpu": {"temp_c": 60},
             "miner": {"hashrate_hps": 0, "available": True},
+            "local_miner": {"hashrate_hps": 0, "available": False, "stale": True},
+            "effective_hashrate": {"hashrate_hps": 0, "source": "none"},
             "status": {"is_active": True, "systemd_state": "active", "process_running": True},
         }
-        with patch.object(telegram_bot, "cfg", return_value={"TELEGRAM_CHAT_ID": "42", "TEMP_SHUTDOWN_C": "80", "HOT_LIMIT_COUNT": "3", "HASHRATE_ZERO_LIMIT": "1"}), \
+        with patch.object(telegram_bot, "cfg", return_value={"TELEGRAM_CHAT_ID": "42", "TEMP_SHUTDOWN_C": "80", "HOT_LIMIT_COUNT": "3", "HASHRATE_ZERO_LIMIT": "2", "HASHRATE_ZERO_STOP": "0"}), \
             patch.object(telegram_bot, "collect_and_store_sample", return_value=sample), \
             patch.object(telegram_bot, "record_reward_if_due"), \
             patch.object(telegram_bot, "control_miner", return_value={"ok": True}) as control:
+            await telegram_bot.watchdog_task(context)
+            await telegram_bot.watchdog_task(context)
+        control.assert_not_called()
+        context.bot.send_message.assert_awaited()
+
+    async def test_local_zero_hash_watchdog_can_stop_when_enabled(self):
+        import telegram_bot
+
+        context = type("Ctx", (), {"bot": type("Bot", (), {"send_message": AsyncMock()})()})()
+        sample = {
+            "gpu": {"temp_c": 60},
+            "miner": {"hashrate_hps": 0, "available": True},
+            "local_miner": {"hashrate_hps": 0, "available": True, "stale": False, "last_status_line": "hashrate_th_s=0"},
+            "effective_hashrate": {"hashrate_hps": 0, "source": "none"},
+            "status": {"is_active": True, "systemd_state": "active", "process_running": True},
+        }
+        with patch.object(telegram_bot, "cfg", return_value={"TELEGRAM_CHAT_ID": "42", "TEMP_SHUTDOWN_C": "80", "HOT_LIMIT_COUNT": "3", "HASHRATE_ZERO_LIMIT": "2", "HASHRATE_ZERO_STOP": "1"}), \
+            patch.object(telegram_bot, "collect_and_store_sample", return_value=sample), \
+            patch.object(telegram_bot, "record_reward_if_due"), \
+            patch.object(telegram_bot, "control_miner", return_value={"ok": True}) as control:
+            await telegram_bot.watchdog_task(context)
             await telegram_bot.watchdog_task(context)
         control.assert_called_with("stop", unittest.mock.ANY)
 
@@ -648,6 +700,53 @@ class StreamingTests(unittest.TestCase):
 
         self.assertEqual(asyncio.run(consume()), [])
 
+    def test_stream_journal_lines_stops_while_idle_when_client_disconnects(self):
+        import miner_services
+
+        class FakeStdout:
+            async def readline(self):
+                await asyncio.sleep(10)
+                return b"late line\n"
+
+        class FakeStderr:
+            async def read(self):
+                return b""
+
+        class FakeProcess:
+            stdout = FakeStdout()
+            stderr = FakeStderr()
+            returncode = None
+            terminated = False
+
+            def terminate(self):
+                self.terminated = True
+                self.returncode = 143
+
+            async def wait(self):
+                return self.returncode
+
+            def kill(self):
+                self.returncode = 137
+
+        fake_process = FakeProcess()
+
+        async def fake_exec(*args, **kwargs):
+            return fake_process
+
+        async def consume():
+            with patch.object(asyncio, "create_subprocess_exec", side_effect=fake_exec):
+                return [
+                    line
+                    async for line in miner_services.stream_journal_lines(
+                        "pearl-miner.service",
+                        stop_check=lambda: True,
+                        idle_timeout=0.01,
+                    )
+                ]
+
+        self.assertEqual(asyncio.run(consume()), [])
+        self.assertTrue(fake_process.terminated)
+
 
 class SchemaTests(unittest.TestCase):
     def test_required_table_and_column_names_exist(self):
@@ -688,6 +787,8 @@ class FrontendTests(unittest.TestCase):
             "/api/gpu/profiles",
             "/api/logs/stream",
             "/api/live",
+            "/api/admin/snapshot",
+            "/api/admin/events",
             "data.shares24h",
         ]
         for endpoint in required:
@@ -729,7 +830,14 @@ class FrontendTests(unittest.TestCase):
         self.assertGreaterEqual(len(scripts), 1)
         self.assertIn("refreshAll", scripts[-1])
         self.assertIn("startLiveMetrics", scripts[-1])
-        self.assertIn("new EventSource('/api/live')", scripts[-1])
+        self.assertIn("new EventSource(authUrl('/api/live'))", scripts[-1])
+        self.assertIn("refreshSnapshot", scripts[-1])
+        self.assertIn("renderEvents", scripts[-1])
+        self.assertIn("authUrl('/api/live')", scripts[-1])
+        self.assertIn("authUrl('/api/logs/stream')", scripts[-1])
+        self.assertIn("dashboard_auth_required", scripts[-1])
+        self.assertIn("URLSearchParams(window.location.search).get('token')", scripts[-1])
+        self.assertIn("history.replaceState", scripts[-1])
 
 
 class ApiTests(unittest.TestCase):
@@ -774,6 +882,55 @@ class ApiTests(unittest.TestCase):
         with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
             app.require_control_access(request)
 
+    def test_dashboard_requires_token_for_non_local_request(self):
+        from starlette.datastructures import Headers, QueryParams
+        import app
+
+        request = type("Req", (), {})()
+        request.client = type("Client", (), {"host": "192.0.2.10"})()
+        request.headers = Headers({})
+        request.query_params = QueryParams("")
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": ""}):
+            with self.assertRaises(Exception):
+                app.require_dashboard_access(request)
+
+    def test_dashboard_token_allows_remote_request(self):
+        from starlette.datastructures import Headers, QueryParams
+        import app
+
+        request = type("Req", (), {})()
+        request.client = type("Client", (), {"host": "192.0.2.10"})()
+        request.headers = Headers({})
+        request.query_params = QueryParams("token=secret")
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
+            app.require_dashboard_access(request)
+
+    def test_profiles_endpoint_uses_dashboard_access_policy(self):
+        from fastapi.testclient import TestClient
+        import app
+
+        client = TestClient(app.app, client=("192.0.2.10", 12345))
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": ""}):
+            response = client.get("/api/gpu/profiles")
+        self.assertEqual(response.status_code, 403)
+
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
+            response = client.get("/api/gpu/profiles?token=secret")
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_html_uses_dashboard_access_policy(self):
+        from fastapi.testclient import TestClient
+        import app
+
+        client = TestClient(app.app, client=("192.0.2.10", 12345))
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": ""}):
+            response = client.get("/")
+        self.assertEqual(response.status_code, 403)
+
+        with patch.object(app, "load_config", return_value={"CONTROL_API_TOKEN": "secret"}):
+            response = client.get("/?token=secret")
+        self.assertEqual(response.status_code, 200)
+
     def test_gpu_payload_zeroes_hashrate_when_service_stopped(self):
         import app
 
@@ -791,12 +948,20 @@ class ApiTests(unittest.TestCase):
     def test_live_payload_contains_dashboard_sections(self):
         import app
 
-        with patch.object(app, "get_gpu_metrics", return_value={"available": True, "gpu_name": "RTX 3060", "temp_c": 55}), \
-            patch.object(app, "fetch_pool_miner_stats", return_value={"available": True, "hashrate_hps": 2e12, "balance_prl": 1.0}), \
-            patch.object(app, "get_miner_status", return_value={"status": "Đang chạy", "is_active": True, "process_running": True, "details": ""}), \
-            patch.object(app, "fetch_price", return_value={"price_usd": 0.5, "price_vnd": 12500, "source": "test"}), \
-            patch.object(app, "estimate_revenue", return_value={"prl_24h": 1.0, "prl_7d": 7.0, "usd_24h": 0.5, "vnd_24h": 12500, "assessment": "OK"}), \
-            patch.object(app, "fetch_pool_summary", return_value={"available": True}), \
+        snapshot = {
+            "timestamp": "2026-06-06T00:00:00+00:00",
+            "system": {"status": "Đang chạy", "is_active": True, "process_running": True, "details": ""},
+            "gpu": {"available": True, "gpu_name": "RTX 3060", "temp_c": 55},
+            "local_miner": {"hashrate_hps": 2e12, "stale": False},
+            "pool_miner": {"available": True, "hashrate_hps": 1e12, "balance_prl": 1.0},
+            "pool": {"available": True},
+            "price": {"price_usd": 0.5, "price_vnd": 12500, "source": "test"},
+            "effective_hashrate": {"hashrate_hps": 2e12, "hashrate_th": 2.0, "hashrate_label": "2.00 TH/s", "source": "local", "stale": False},
+            "prediction": {"prl_24h": 1.0, "prl_7d": 7.0, "usd_24h": 0.5, "vnd_24h": 12500, "assessment": "OK"},
+            "finance": {"balance_prl": 1.0, "balance_usd": 0.5, "price": {"price_usd": 0.5, "raw": {"secret": True}}},
+            "safety": {"level": "ok", "reasons": []},
+        }
+        with patch.object(app, "collect_telemetry_snapshot", return_value=snapshot), \
             patch.object(app, "today_reward_prl", return_value=0.25):
             payload = app._live_payload()
 
@@ -804,7 +969,28 @@ class ApiTests(unittest.TestCase):
         self.assertIn("gpu", payload)
         self.assertIn("finance", payload)
         self.assertEqual(payload["gpu"]["hashrate_label"], "2.00 TH/s")
+        self.assertEqual(payload["gpu"]["hashrate_source"], "local")
         self.assertEqual(payload["finance"]["balance_usd"], 0.5)
+        self.assertNotIn("raw", payload["finance"]["price"])
+
+    def test_admin_snapshot_sanitizes_raw_external_payloads(self):
+        import app
+
+        snapshot = {
+            "pool_miner": {"available": True, "raw": {"secret": True}},
+            "pool": {"available": True, "raw": {"secret": True}},
+            "price": {"price_usd": 1.0, "raw": {"secret": True}},
+            "finance": {"price": {"price_usd": 1.0, "raw": {"secret": True}}},
+        }
+        request = unittest.mock.Mock()
+        with patch.object(app, "collect_telemetry_snapshot", return_value=snapshot), \
+            patch.object(app, "require_dashboard_access"):
+            payload = app.api_admin_snapshot(request)
+
+        self.assertNotIn("raw", payload["pool_miner"])
+        self.assertNotIn("raw", payload["pool"])
+        self.assertNotIn("raw", payload["price"])
+        self.assertNotIn("raw", payload["finance"]["price"])
 
 
 class DeploymentScriptTests(unittest.TestCase):

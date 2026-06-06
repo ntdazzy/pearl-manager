@@ -16,9 +16,11 @@ from pydantic import BaseModel
 
 from config import BASE_DIR, get_float, get_oc_profiles, load_config
 from database import init_db, record_event
+from database import SessionLocal
 from miner_services import (
     apply_oc_profile,
     collect_and_store_sample,
+    collect_telemetry_snapshot,
     control_miner,
     estimate_revenue,
     fetch_pool_miner_stats,
@@ -33,6 +35,7 @@ from miner_services import (
     stream_journal_lines,
     today_reward_prl,
 )
+from models import SystemEvent
 
 
 class ProfileRequest(BaseModel):
@@ -77,6 +80,23 @@ def require_control_access(request: Request) -> None:
     raise HTTPException(
         status_code=403,
         detail={"ok": False, "error": "CONTROL_API_TOKEN is required for non-local control requests"},
+    )
+
+
+def require_dashboard_access(request: Request) -> None:
+    token = load_config().get("CONTROL_API_TOKEN", "").strip()
+    supplied = _request_token(request)
+    if token:
+        if supplied == token:
+            return
+        if _is_local_client(request):
+            return
+        raise HTTPException(status_code=401, detail={"ok": False, "error": "dashboard_auth_required"})
+    if _is_local_client(request):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={"ok": False, "error": "CONTROL_API_TOKEN is required for non-local dashboard requests"},
     )
 
 
@@ -133,12 +153,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
     record_event("error", "api", f"Unhandled error on {request.url.path}", str(exc))
     return JSONResponse(
         status_code=500,
-        content={"ok": False, "error": "internal_server_error", "detail": str(exc)},
+        content={"ok": False, "error": "internal_server_error"},
     )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    require_dashboard_access(request)
     return templates.TemplateResponse(request=request, name="index.html", context={})
 
 
@@ -173,6 +194,53 @@ def _finance_payload(miner: dict[str, Any] | None = None, price: dict[str, Any] 
         "mode": miner.get("mode", "N/A"),
         "source_url": miner.get("url", ""),
     }
+
+
+def _safe_price(price: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(price, dict):
+        return {}
+    return {key: value for key, value in price.items() if key != "raw"}
+
+
+def _safe_dict(data: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    return {key: value for key, value in data.items() if key != "raw"}
+
+
+def _sanitized_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
+    clean = dict(snapshot)
+    clean["pool_miner"] = _safe_dict(snapshot.get("pool_miner"))
+    clean["pool"] = _safe_dict(snapshot.get("pool"))
+    clean["price"] = _safe_price(snapshot.get("price", {}))
+    clean["finance"] = dict(snapshot.get("finance") or {})
+    clean["gpu"] = dict(snapshot.get("gpu") or {})
+    clean["gpu"]["coin_today_prl"] = today_reward_prl()
+    clean["coin_today_prl"] = clean["gpu"]["coin_today_prl"]
+    if isinstance(clean["finance"].get("price"), dict):
+        clean["finance"]["price"] = _safe_price(clean["finance"]["price"])
+    return clean
+
+
+def _recent_events(limit: int = 30) -> list[dict[str, Any]]:
+    safe_limit = min(max(int(limit or 30), 1), 100)
+    try:
+        with SessionLocal() as db:
+            rows = db.query(SystemEvent).order_by(SystemEvent.timestamp.desc(), SystemEvent.id.desc()).limit(safe_limit).all()
+    except Exception as exc:
+        record_event("warning", "api", "Cannot read system events", str(exc))
+        return []
+    return [
+        {
+            "id": row.id,
+            "timestamp": row.timestamp.isoformat() if row.timestamp else "",
+            "level": row.level,
+            "category": row.category,
+            "message": row.message,
+            "details": row.details,
+        }
+        for row in rows
+    ]
 
 
 def _system_payload(status: dict[str, Any] | None = None, gpu: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -240,23 +308,39 @@ def _compact_live_pool(pool: dict[str, Any]) -> dict[str, Any]:
 
 
 def _live_payload() -> dict[str, Any]:
-    gpu_metrics = get_gpu_metrics()
-    miner = fetch_pool_miner_stats()
-    status = get_miner_status()
-    price = fetch_price()
-    prediction = estimate_revenue()
-    finance = _finance_payload(miner, price)
+    snapshot = collect_telemetry_snapshot()
+    gpu_metrics = snapshot.get("gpu", {})
+    status = snapshot.get("system", {})
+    effective = snapshot.get("effective_hashrate", {})
+    prediction = snapshot.get("prediction", {})
+    finance = dict(snapshot.get("finance", {}))
     if isinstance(finance.get("price"), dict):
-        finance["price"] = {key: value for key, value in finance["price"].items() if key != "raw"}
-    gpu = _gpu_payload(gpu_metrics, miner, status, prediction, finance)
-    finance["prediction"] = gpu.get("prediction", {})
-    finance["pool"] = _compact_live_pool(fetch_pool_summary())
-    gpu = {key: value for key, value in gpu.items() if key != "finance"}
+        finance["price"] = _safe_price(finance["price"])
+    finance["prediction"] = prediction
+    finance["pool"] = _compact_live_pool(snapshot.get("pool", {}))
+    finance["local_miner"] = snapshot.get("local_miner", {})
+    finance["effective_hashrate"] = snapshot.get("effective_hashrate", {})
+    finance["pool_miner"] = {key: value for key, value in snapshot.get("pool_miner", {}).items() if key != "raw"}
+    gpu = {
+        **gpu_metrics,
+        "status": status.get("status"),
+        "is_active": status.get("is_active"),
+        "process_running": status.get("process_running"),
+        "hashrate_th": round(float(effective.get("hashrate_th") or 0.0), 4),
+        "hashrate_label": effective.get("hashrate_label", "0 H/s"),
+        "hashrate_source": effective.get("source", "unknown"),
+        "hashrate_stale": bool(effective.get("stale")),
+        "coin_today_prl": today_reward_prl(),
+        "prediction": prediction,
+        "safety": snapshot.get("safety", {}),
+        "local_miner": snapshot.get("local_miner", {}),
+    }
     return {
         "system": _system_payload(status, gpu_metrics),
         "gpu": gpu,
         "finance": finance,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "safety": snapshot.get("safety", {}),
+        "timestamp": snapshot.get("timestamp") or datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -282,38 +366,36 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/api/system/status")
-def api_system_status() -> dict[str, Any]:
-    return _system_payload()
+def api_system_status(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
+    payload = _live_payload()
+    return payload["system"]
 
 
 @app.get("/api/gpu/metrics")
-def api_gpu_metrics() -> dict[str, Any]:
-    return _gpu_payload()
+def api_gpu_metrics(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
+    payload = _live_payload()
+    return payload["gpu"]
 
 
 @app.get("/api/mining/finance")
-def api_mining_finance() -> dict[str, Any]:
-    prediction = estimate_revenue()
-    finance = _finance_payload()
-    finance["prediction"] = {
-        "prl_24h": prediction.get("prl_24h", 0.0),
-        "prl_7d": prediction.get("prl_7d", 0.0),
-        "usd_24h": prediction.get("usd_24h", 0.0),
-        "vnd_24h": prediction.get("vnd_24h", 0.0),
-        "assessment": prediction.get("assessment", "N/A"),
-    }
-    finance["pool"] = fetch_pool_summary()
-    return finance
+def api_mining_finance(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
+    payload = _live_payload()
+    return payload["finance"]
 
 
 @app.get("/api/chart_data")
-def api_chart_data() -> dict[str, Any]:
+def api_chart_data(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
     return get_chart_data()
 
 
 @app.get("/api/stats")
-def api_stats_legacy() -> dict[str, Any]:
-    gpu = _gpu_payload()
+def api_stats_legacy(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
+    gpu = _live_payload()["gpu"]
     return {
         "status": gpu.get("status", "N/A"),
         "temp": gpu.get("temp_c", 0.0),
@@ -330,26 +412,40 @@ def api_stats_legacy() -> dict[str, Any]:
 
 @app.get("/api/live")
 async def api_live(request: Request) -> StreamingResponse:
+    require_dashboard_access(request)
+
     async def event_generator():
-        while True:
-            if await request.is_disconnected():
-                break
-            try:
-                payload = await asyncio.to_thread(_live_payload)
-                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                record_event("warning", "api", "Live metrics stream failed", str(exc))
-                error_payload = {
-                    "ok": False,
-                    "error": str(exc),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
-                yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
-            await asyncio.sleep(max(1.0, get_float(load_config(), "LIVE_UPDATE_SECONDS", 2.0)))
+        retry_ms = int(max(1.0, get_float(load_config(), "LIVE_UPDATE_SECONDS", 2.0)) * 1000)
+        yield f"retry: {retry_ms}\n\n"
+        if await request.is_disconnected():
+            return
+        try:
+            payload = await asyncio.to_thread(_live_payload)
+            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            record_event("warning", "api", "Live metrics stream failed", str(exc))
+            error_payload = {
+                "ok": False,
+                "error": str(exc),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get("/api/admin/snapshot")
+def api_admin_snapshot(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
+    return _sanitized_snapshot(collect_telemetry_snapshot())
+
+
+@app.get("/api/admin/events")
+def api_admin_events(request: Request, limit: int = 30) -> dict[str, Any]:
+    require_dashboard_access(request)
+    return {"events": _recent_events(limit)}
 
 
 @app.post("/api/control/{action}")
@@ -371,29 +467,39 @@ def api_gpu_profile(payload: ProfileRequest, request: Request) -> dict[str, Any]
 
 
 @app.get("/api/gpu/profiles")
-def api_gpu_profiles() -> dict[str, Any]:
+def api_gpu_profiles(request: Request) -> dict[str, Any]:
+    require_dashboard_access(request)
     return {"profiles": get_oc_profiles()}
 
 
 @app.get("/api/logs/stream")
-async def api_logs_stream() -> StreamingResponse:
+async def api_logs_stream(request: Request) -> StreamingResponse:
+    require_dashboard_access(request)
     cfg = load_config()
     service = cfg.get("MINER_SERVICE", "pearl-miner.service")
+    reconnect_ms = int(max(1.0, get_float(cfg, "LIVE_UPDATE_SECONDS", 2.0)) * 1000)
 
     async def event_generator():
-        async for line in stream_journal_lines(service):
+        yield f"retry: {reconnect_ms}\n\n"
+        async for line in stream_journal_lines(
+            service,
+            stop_check=request.is_disconnected,
+            max_seconds=4.0,
+            max_lines=80,
+        ):
             yield f"data: {json.dumps({'line': line, 'service': service})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/api/logs")
-async def api_logs_plain() -> StreamingResponse:
+async def api_logs_plain(request: Request) -> StreamingResponse:
+    require_dashboard_access(request)
     cfg = load_config()
     service = cfg.get("MINER_SERVICE", "pearl-miner.service")
 
     async def text_generator():
-        async for line in stream_journal_lines(service):
+        async for line in stream_journal_lines(service, stop_check=request.is_disconnected):
             yield f"{line}\n"
 
     return StreamingResponse(text_generator(), media_type="text/plain; charset=utf-8")

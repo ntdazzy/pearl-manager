@@ -101,8 +101,59 @@ notify_miner_started("${action}")
 PY
 }
 
+show_health() {
+  "$DIR/venv/bin/python" - <<'PY'
+from miner_services import collect_telemetry_snapshot
+from config import load_config
+
+cfg = load_config()
+data = collect_telemetry_snapshot(cfg, use_cache=False)
+status = data.get("system", {})
+gpu = data.get("gpu", {})
+effective = data.get("effective_hashrate", {})
+finance = data.get("finance", {})
+safety = data.get("safety", {})
+pool = data.get("pool", {})
+local = data.get("local_miner", {})
+
+print("=================================================")
+print(" PEARL HEALTH SNAPSHOT")
+print("=================================================")
+print(f"Service: {status.get('service', cfg.get('MINER_SERVICE'))}")
+print(f"State:   {status.get('systemd_state', 'N/A')} | process={status.get('process_running')} | pid={status.get('pid') or 'N/A'}")
+print(f"GPU:     {gpu.get('gpu_name', 'N/A')} | {gpu.get('temp_c', 0)}C | {gpu.get('power_w', 0)}W | fan {gpu.get('fan_speed', 0)}%")
+print(f"Hash:    {effective.get('hashrate_label', 'N/A')} | source={effective.get('source', 'unknown')} | stale={effective.get('stale')}")
+print(f"Local:   {local.get('hashrate_label', 'N/A')} | stale={local.get('stale')} | shares={local.get('submitted_shares', 0)}")
+print(f"Balance: {finance.get('balance_prl', 0)} PRL | USD={finance.get('balance_usd', 0):.2f} | shares24h={finance.get('shares24h', 'N/A')}")
+print(f"Pool:    network={pool.get('network_hashrate_label', 'N/A')} | pool={pool.get('pool_hashrate_label', 'N/A')}")
+print(f"Safety:  {safety.get('level', 'N/A')} | {'; '.join(safety.get('reasons') or ['OK'])}")
+print("=================================================")
+PY
+}
+
+show_events() {
+  "$DIR/venv/bin/python" - <<'PY'
+from database import SessionLocal
+from models import SystemEvent
+
+with SessionLocal() as db:
+    rows = db.query(SystemEvent).order_by(SystemEvent.timestamp.desc(), SystemEvent.id.desc()).limit(12).all()
+print("=================================================")
+print(" PEARL RECENT EVENTS")
+print("=================================================")
+if not rows:
+    print("No events.")
+for row in rows:
+    ts = row.timestamp.astimezone().strftime("%Y-%m-%d %H:%M:%S") if row.timestamp else "N/A"
+    print(f"[{ts}] {row.level.upper()} {row.category}: {row.message}")
+    if row.details:
+        print(f"  {row.details[:240]}")
+print("=================================================")
+PY
+}
+
 while true; do
-  choice=$(whiptail --title "PEARL MINER MANAGER" --menu "Choose an action:" 22 78 12 \
+  choice=$(whiptail --title "PEARL MINER MANAGER" --menu "Choose an action:" 24 82 14 \
     "1" "Start miner" \
     "2" "Stop miner" \
     "3" "Restart miner" \
@@ -114,7 +165,9 @@ while true; do
     "9" "Edit config" \
     "10" "Run setup_env.sh" \
     "11" "Tail miner logs" \
-    "12" "Exit" 3>&1 1>&2 2>&3) || break
+    "12" "Health snapshot" \
+    "13" "Recent system events" \
+    "14" "Exit" 3>&1 1>&2 2>&3) || break
 
   case "$choice" in
     1) require_wallet && sudo -n systemctl start "$MINER_SERVICE" && notify_miner_started start && whiptail --msgbox "Miner started." 8 40 ;;
@@ -128,6 +181,8 @@ while true; do
     9) configure_values; restart_stack ;;
     10) "$DIR/setup_env.sh"; read -r -p "Press Enter..." ;;
     11) journalctl -u "$MINER_SERVICE" -f ;;
-    12) break ;;
+    12) show_health; read -r -p "Press Enter..." ;;
+    13) show_events; read -r -p "Press Enter..." ;;
+    14) break ;;
   esac
 done

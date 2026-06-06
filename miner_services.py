@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Awaitable, Callable
 from urllib.parse import quote
 
 import requests
@@ -40,6 +40,9 @@ HASHRATE_UNITS = {
 }
 
 _JSON_CACHE: dict[str, tuple[float, dict[str, Any] | list[Any]]] = {}
+_LAST_GOOD: dict[str, tuple[float, dict[str, Any]]] = {}
+_SNAPSHOT_CACHE: tuple[float, dict[str, Any]] | None = None
+_URL_ERROR_LOG_CACHE: dict[str, float] = {}
 _LAST_JOURNAL_LINE = ""
 
 
@@ -114,6 +117,47 @@ def format_hashrate_hps(value: float) -> str:
     return f"{value:.0f} H/s"
 
 
+def _now_ts() -> float:
+    return time.time()
+
+
+def _iso_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _mark_last_good(key: str, data: dict[str, Any]) -> dict[str, Any]:
+    stamped = dict(data)
+    stamped["stale"] = False
+    stamped["last_success_at"] = _iso_now()
+    _LAST_GOOD[key] = (_now_ts(), stamped)
+    return stamped
+
+
+def _with_last_good(key: str, data: dict[str, Any], stale_after: float = 180.0) -> dict[str, Any]:
+    if data.get("available"):
+        return _mark_last_good(key, data)
+    cached = _LAST_GOOD.get(key)
+    if not cached:
+        data = dict(data)
+        data.setdefault("stale", False)
+        data.setdefault("last_success_at", "")
+        return data
+    ts, cached_data = cached
+    stale_age = max(0.0, _now_ts() - ts)
+    if stale_age > stale_after:
+        data = dict(data)
+        data["stale"] = True
+        data["stale_age_seconds"] = round(stale_age, 1)
+        data["last_success_at"] = cached_data.get("last_success_at", "")
+        return data
+    fallback = dict(cached_data)
+    fallback["available"] = False
+    fallback["stale"] = True
+    fallback["stale_age_seconds"] = round(stale_age, 1)
+    fallback["error"] = data.get("error") or data.get("details") or "using last good data"
+    return fallback
+
+
 def fetch_json(url: str, timeout: int = 8, ttl: int = 20) -> dict[str, Any] | list[Any] | None:
     now = time.monotonic()
     cached = _JSON_CACHE.get(url)
@@ -126,7 +170,10 @@ def fetch_json(url: str, timeout: int = 8, ttl: int = 20) -> dict[str, Any] | li
         _JSON_CACHE[url] = (now + ttl, data)
         return data
     except Exception as exc:
-        record_event("warning", "external_api", f"Cannot fetch {url}", str(exc))
+        last_logged = _URL_ERROR_LOG_CACHE.get(url, 0.0)
+        if now - last_logged >= 60:
+            _URL_ERROR_LOG_CACHE[url] = now
+            record_event("warning", "external_api", f"Cannot fetch {url}", str(exc))
         return None
 
 
@@ -245,6 +292,7 @@ def fetch_pool_miner_stats(config: dict[str, str] | None = None) -> dict[str, An
     if not isinstance(raw, dict):
         return {
             "available": False,
+            "error": "pool_api_unavailable",
             "url": url,
             "wallet": wallet,
             "balance_prl": 0.0,
@@ -288,6 +336,7 @@ def fetch_pool_miner_stats(config: dict[str, str] | None = None) -> dict[str, An
         "last_seen": raw.get("last_seen") or raw.get("lastSeen"),
         "mode": raw.get("mode") or raw.get("paymentProcessing") or ("SOLO" if raw.get("is_solo") else "PPLNS"),
         "raw": raw,
+        "error": "",
     }
 
 
@@ -443,6 +492,307 @@ def get_miner_status(config: dict[str, str] | None = None) -> dict[str, Any]:
     }
 
 
+def _parse_log_timestamp(line: str) -> datetime | None:
+    match = re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", line)
+    if not match:
+        return None
+    try:
+        return datetime.fromisoformat(match.group(0).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def parse_local_miner_journal(text: str, stale_after: float = 180.0) -> dict[str, Any]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    now = datetime.now(timezone.utc)
+    status_line = ""
+    last_status_at: datetime | None = None
+    last_share_at: datetime | None = None
+    hashrate_hps = 0.0
+    share_equiv_hps = 0.0
+    attempts = 0
+    hits = 0
+    submitted = 0
+    found = 0
+    rejected = 0
+
+    for line in lines:
+        ts = _parse_log_timestamp(line)
+        lowered = line.lower()
+        if "component=share" in lowered and "found_candidate" in lowered:
+            found += 1
+        if "component=share" in lowered and "submitted" in lowered:
+            submitted += 1
+            if ts is not None:
+                last_share_at = ts
+        if "component=share" in lowered and ("reject" in lowered or "stale" in lowered):
+            rejected += 1
+            if ts is not None:
+                last_share_at = ts
+        if "component=miner" in lowered and "status" in lowered:
+            status_line = line
+            if ts is not None:
+                last_status_at = ts
+            hashrate_hps = safe_float(re.search(r"hashrate_th_s=([-+]?\d+(?:\.\d+)?)", line).group(1) if re.search(r"hashrate_th_s=([-+]?\d+(?:\.\d+)?)", line) else 0.0) * 1e12
+            share_equiv_hps = safe_float(re.search(r"share_equiv_th_s=([-+]?\d+(?:\.\d+)?)", line).group(1) if re.search(r"share_equiv_th_s=([-+]?\d+(?:\.\d+)?)", line) else 0.0) * 1e12
+            attempts = int(safe_float(re.search(r"attempts=(\d+)", line).group(1) if re.search(r"attempts=(\d+)", line) else attempts))
+            hits = int(safe_float(re.search(r"hits=(\d+)", line).group(1) if re.search(r"hits=(\d+)", line) else hits))
+
+    last_signal = last_share_at or last_status_at
+    stale_age = (now - last_signal).total_seconds() if last_signal is not None else 0.0
+    stale = bool(last_signal is None or stale_age > stale_after)
+    return {
+        "available": bool(lines),
+        "source": "journal",
+        "hashrate_hps": hashrate_hps,
+        "hashrate_label": format_hashrate_hps(hashrate_hps) if hashrate_hps > 0 else "0 H/s",
+        "share_equiv_hps": share_equiv_hps,
+        "share_equiv_label": format_hashrate_hps(share_equiv_hps) if share_equiv_hps > 0 else "0 H/s",
+        "attempts": attempts,
+        "hits": hits,
+        "submitted_shares": submitted,
+        "found_candidates": found,
+        "rejected_shares": rejected,
+        "last_status_at": last_status_at.isoformat() if last_status_at else "",
+        "last_share_at": last_share_at.isoformat() if last_share_at else "",
+        "last_signal_age_seconds": round(stale_age, 1) if last_signal is not None else None,
+        "stale": stale,
+        "lines_scanned": len(lines),
+        "last_status_line": status_line[-500:],
+        "error": "",
+    }
+
+
+def get_local_miner_stats(config: dict[str, str] | None = None, limit: int = 240) -> dict[str, Any]:
+    cfg = config or load_config()
+    service = cfg.get("MINER_SERVICE", "pearl-miner.service")
+    stale_after = get_float(cfg, "LOCAL_MINER_STALE_SECONDS", 180)
+    result = run_command(["journalctl", "-u", service, "-n", str(limit), "-o", "cat", "--no-pager"], timeout=10)
+    if not result.ok:
+        return {
+            "available": False,
+            "source": "journal",
+            "hashrate_hps": 0.0,
+            "hashrate_label": "N/A",
+            "share_equiv_hps": 0.0,
+            "share_equiv_label": "N/A",
+            "submitted_shares": 0,
+            "found_candidates": 0,
+            "rejected_shares": 0,
+            "stale": True,
+            "error": result.stderr or result.stdout or "journal unavailable",
+        }
+    stats = parse_local_miner_journal(result.stdout, stale_after=stale_after)
+    stats["service"] = service
+    return stats
+
+
+def _effective_hashrate(status: dict[str, Any], local: dict[str, Any], pool_miner: dict[str, Any]) -> dict[str, Any]:
+    service_running = bool(status.get("is_active") and status.get("process_running"))
+    if not service_running:
+        return {
+            "hashrate_hps": 0.0,
+            "hashrate_th": 0.0,
+            "hashrate_label": "0 H/s",
+            "source": "service_stopped",
+            "stale": False,
+        }
+    local_hps = float(local.get("hashrate_hps") or 0.0)
+    pool_hps = float(pool_miner.get("hashrate_hps") or 0.0)
+    if local_hps > 0 and not local.get("stale"):
+        source = "local"
+        value = local_hps
+        stale = False
+    elif pool_hps > 0:
+        source = "pool_stale" if pool_miner.get("stale") else "pool"
+        value = pool_hps
+        stale = bool(pool_miner.get("stale"))
+    else:
+        source = "none"
+        value = 0.0
+        stale = bool(local.get("stale") or pool_miner.get("stale"))
+    return {
+        "hashrate_hps": value,
+        "hashrate_th": hps_to_th(value),
+        "hashrate_label": format_hashrate_hps(value) if value > 0 else "0 H/s",
+        "source": source,
+        "stale": stale,
+    }
+
+
+def build_prediction(
+    effective_hashrate: dict[str, Any],
+    pool: dict[str, Any],
+    price: dict[str, Any],
+    status: dict[str, Any],
+    gpu: dict[str, Any],
+    config: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    cfg = config or load_config()
+    service_running = bool(status.get("is_active") and status.get("process_running"))
+    miner_hps = float(effective_hashrate.get("hashrate_hps") or 0.0) if service_running else 0.0
+    network_hps = float(pool.get("network_hashrate_hps") or 0.0)
+    reward = float(pool.get("reward_prl") or 0.0)
+    block_time = float(pool.get("block_time_seconds") or 132.86)
+    fee_factor = max(0.0, 1.0 - float(pool.get("fee_percent") or 0.0) / 100)
+    prl_24h = 0.0
+    if miner_hps > 0 and network_hps > 0 and reward > 0 and block_time > 0:
+        prl_24h = (miner_hps / network_hps) * (86400 / block_time) * reward * fee_factor
+
+    temp = float(gpu.get("temp_c") or 0.0)
+    warn_temp = get_float(cfg, "TEMP_WARN_C", 84)
+    stop_temp = get_float(cfg, "TEMP_SHUTDOWN_C", 90)
+    if not service_running:
+        assessment = "Miner đang dừng. Dự đoán doanh thu tạm đặt 0."
+    elif temp >= stop_temp:
+        assessment = f"GPU đã chạm vùng nguy hiểm {temp:.0f}°C; watchdog nên dừng nếu kéo dài."
+    elif temp >= warn_temp:
+        assessment = f"GPU đang nóng {temp:.0f}°C; nên kiểm tra gió, power limit và reject/stale shares."
+    elif effective_hashrate.get("source") == "local":
+        assessment = "Hashrate đang lấy từ log miner local, đáng tin hơn pool API."
+    elif effective_hashrate.get("source") == "pool":
+        assessment = "Chưa có local hashrate mới, đang tạm dùng AlphaPool."
+    elif effective_hashrate.get("stale"):
+        assessment = "Dữ liệu hashrate đang stale; cần kiểm tra miner log hoặc kết nối pool."
+    else:
+        assessment = "Chưa có hashrate hợp lệ dù service đang chạy."
+    return {
+        "prl_24h": prl_24h,
+        "prl_7d": prl_24h * 7,
+        "usd_24h": prl_24h * float(price.get("price_usd") or 0.0),
+        "vnd_24h": prl_24h * float(price.get("price_vnd") or 0.0),
+        "assessment": assessment,
+        "hashrate_source": effective_hashrate.get("source", "unknown"),
+        "network_hashrate_hps": network_hps,
+    }
+
+
+def build_safety_state(
+    config: dict[str, str],
+    gpu: dict[str, Any],
+    status: dict[str, Any],
+    local: dict[str, Any],
+    pool_miner: dict[str, Any],
+    effective_hashrate: dict[str, Any],
+) -> dict[str, Any]:
+    temp = float(gpu.get("temp_c") or 0.0)
+    warn_temp = get_float(config, "TEMP_WARN_C", 84)
+    stop_temp = get_float(config, "TEMP_SHUTDOWN_C", 90)
+    service_running = bool(status.get("is_active") and status.get("process_running"))
+    local_zero = service_running and bool(local.get("available")) and not local.get("stale") and float(local.get("hashrate_hps") or 0.0) <= 0
+    pool_zero = service_running and bool(pool_miner.get("available")) and not pool_miner.get("stale") and float(pool_miner.get("hashrate_hps") or 0.0) <= 0
+    should_stop_zero = get_int(config, "HASHRATE_ZERO_STOP", 0) == 1
+    level = "ok"
+    reasons: list[str] = []
+    actions: list[str] = []
+    if temp >= stop_temp:
+        level = "critical"
+        reasons.append(f"GPU {temp:.0f}°C >= shutdown {stop_temp:.0f}°C")
+        actions.append("stop_on_repeated_hot")
+    elif temp >= warn_temp:
+        level = "warning"
+        reasons.append(f"GPU {temp:.0f}°C >= warn {warn_temp:.0f}°C")
+    if service_running and effective_hashrate.get("source") == "none":
+        level = "warning" if level == "ok" else level
+        reasons.append("Miner service chạy nhưng chưa có hashrate hợp lệ")
+    if local.get("stale") and service_running:
+        level = "warning" if level == "ok" else level
+        reasons.append("Local miner log stale")
+    if pool_miner.get("stale"):
+        reasons.append("AlphaPool API stale")
+    if local_zero:
+        reasons.append("Local miner báo hashrate 0")
+        if should_stop_zero:
+            actions.append("stop_on_repeated_zero_local")
+    elif pool_zero:
+        reasons.append("AlphaPool báo hashrate 0")
+    return {
+        "level": level,
+        "reasons": reasons,
+        "actions": actions,
+        "temp_warn_c": warn_temp,
+        "temp_shutdown_c": stop_temp,
+        "hashrate_zero_stop": should_stop_zero,
+    }
+
+
+def _finance_payload_from_parts(miner: dict[str, Any], price: dict[str, Any]) -> dict[str, Any]:
+    balance = float(miner.get("balance_prl") or 0.0)
+    total_paid = float(miner.get("total_paid_prl") or 0.0)
+    return {
+        "available": bool(miner.get("available")),
+        "stale": bool(miner.get("stale")),
+        "stale_age_seconds": miner.get("stale_age_seconds"),
+        "wallet": miner.get("wallet", ""),
+        "balance_prl": balance,
+        "total_paid_prl": total_paid,
+        "balance_usd": balance * float(price.get("price_usd") or 0.0),
+        "balance_vnd": balance * float(price.get("price_vnd") or 0.0),
+        "price": price,
+        "shares24h": miner.get("shares24h", 0),
+        "workers": miner.get("workers", []),
+        "hashrate_label": miner.get("hashrate_label", "N/A"),
+        "mode": miner.get("mode", "N/A"),
+        "source_url": miner.get("url", ""),
+    }
+
+
+def collect_telemetry_snapshot(config: dict[str, str] | None = None, use_cache: bool = True) -> dict[str, Any]:
+    global _SNAPSHOT_CACHE
+    cfg = config or load_config()
+    ttl = max(0.0, get_float(cfg, "SNAPSHOT_CACHE_SECONDS", 2))
+    now = time.monotonic()
+    if use_cache and _SNAPSHOT_CACHE and _SNAPSHOT_CACHE[0] > now:
+        return _SNAPSHOT_CACHE[1]
+
+    gpu = get_gpu_metrics(cfg)
+    status = get_miner_status(cfg)
+    local = get_local_miner_stats(cfg)
+    pool_stale_after = get_float(cfg, "POOL_STALE_AFTER_SECONDS", 180)
+    pool_miner = _with_last_good("pool_miner", fetch_pool_miner_stats(cfg), stale_after=pool_stale_after)
+    pool = _with_last_good("pool_summary", fetch_pool_summary(cfg), stale_after=pool_stale_after)
+    price = _with_last_good("price", fetch_price(cfg), stale_after=max(300.0, pool_stale_after))
+    effective = _effective_hashrate(status, local, pool_miner)
+    prediction = build_prediction(effective, pool, price, status, gpu, cfg)
+    safety = build_safety_state(cfg, gpu, status, local, pool_miner, effective)
+    finance = _finance_payload_from_parts(pool_miner, price)
+    snapshot = {
+        "timestamp": _iso_now(),
+        "system": status,
+        "gpu": gpu,
+        "local_miner": local,
+        "pool_miner": pool_miner,
+        "pool": pool,
+        "price": price,
+        "effective_hashrate": effective,
+        "prediction": prediction,
+        "finance": finance,
+        "safety": safety,
+    }
+    if ttl > 0:
+        _SNAPSHOT_CACHE = (now + ttl, snapshot)
+    return snapshot
+
+
+def store_snapshot_sample(snapshot: dict[str, Any]) -> None:
+    gpu = snapshot.get("gpu", {})
+    effective = snapshot.get("effective_hashrate", {})
+    log = HardwareLog(
+        temp_c=float(gpu.get("temp_c") or 0.0),
+        power_w=float(gpu.get("power_w") or 0.0),
+        fan_speed=float(gpu.get("fan_speed") or 0.0),
+        hashrate_th=hps_to_th(float(effective.get("hashrate_hps") or 0.0)),
+        vram_gb=float(gpu.get("vram_gb") or 0.0),
+        gpu_name=str(gpu.get("gpu_name") or ""),
+    )
+    try:
+        with SessionLocal() as db:
+            db.add(log)
+            db.commit()
+    except Exception as exc:
+        record_event("error", "database", "Cannot store hardware log", str(exc))
+
+
 def send_telegram_notification(text: str, config: dict[str, str] | None = None) -> dict[str, Any]:
     cfg = config or load_config()
     token = str(cfg.get("TELEGRAM_TOKEN") or "").strip()
@@ -567,27 +917,18 @@ def apply_oc_profile(profile_id: str, config: dict[str, str] | None = None) -> d
 
 
 def collect_and_store_sample(config: dict[str, str] | None = None) -> dict[str, Any]:
-    cfg = config or load_config()
-    gpu = get_gpu_metrics(cfg)
-    miner = fetch_pool_miner_stats(cfg)
-    status = get_miner_status(cfg)
-    service_running = bool(status.get("is_active") and status.get("process_running"))
-    hashrate_hps = miner.get("hashrate_hps", 0.0) if service_running else 0.0
-    log = HardwareLog(
-        temp_c=float(gpu.get("temp_c") or 0.0),
-        power_w=float(gpu.get("power_w") or 0.0),
-        fan_speed=float(gpu.get("fan_speed") or 0.0),
-        hashrate_th=hps_to_th(hashrate_hps),
-        vram_gb=float(gpu.get("vram_gb") or 0.0),
-        gpu_name=str(gpu.get("gpu_name") or ""),
-    )
-    try:
-        with SessionLocal() as db:
-            db.add(log)
-            db.commit()
-    except Exception as exc:
-        record_event("error", "database", "Cannot store hardware log", str(exc))
-    return {"gpu": gpu, "miner": miner, "status": status, "hashrate_th": hps_to_th(hashrate_hps)}
+    snapshot = collect_telemetry_snapshot(config, use_cache=False)
+    store_snapshot_sample(snapshot)
+    return {
+        "gpu": snapshot.get("gpu", {}),
+        "miner": snapshot.get("pool_miner", {}),
+        "local_miner": snapshot.get("local_miner", {}),
+        "pool": snapshot.get("pool", {}),
+        "status": snapshot.get("system", {}),
+        "effective_hashrate": snapshot.get("effective_hashrate", {}),
+        "safety": snapshot.get("safety", {}),
+        "hashrate_th": hps_to_th(float(snapshot.get("effective_hashrate", {}).get("hashrate_hps") or 0.0)),
+    }
 
 
 def calculate_hourly_reward(pool_stats: dict[str, Any] | None = None) -> float:
@@ -702,39 +1043,19 @@ def get_chart_data(days: int = 7) -> dict[str, Any]:
 
 
 def estimate_revenue(config: dict[str, str] | None = None) -> dict[str, Any]:
-    cfg = config or load_config()
-    miner = fetch_pool_miner_stats(cfg)
-    pool = fetch_pool_summary(cfg)
-    price = fetch_price(cfg)
-    status = get_miner_status(cfg)
-    service_running = bool(status.get("is_active") and status.get("process_running"))
-    miner_hps = float(miner.get("hashrate_hps") or 0.0) if service_running else 0.0
-    network_hps = float(pool.get("network_hashrate_hps") or 0.0)
-    reward = float(pool.get("reward_prl") or 0.0)
-    block_time = float(pool.get("block_time_seconds") or 132.86)
-    fee_factor = max(0.0, 1.0 - float(pool.get("fee_percent") or 0.0) / 100)
-    prl_24h = 0.0
-    if miner_hps > 0 and network_hps > 0 and reward > 0 and block_time > 0:
-        prl_24h = (miner_hps / network_hps) * (86400 / block_time) * reward * fee_factor
-    gpu = get_gpu_metrics(cfg)
-    if not service_running:
-        assessment = "Miner đang dừng hoặc watchdog vừa bảo vệ máy."
-    elif float(gpu.get("temp_c") or 0.0) >= 78:
-        assessment = "Nhiệt độ đang làm giảm hiệu năng, nên kiểm tra gió và power limit."
-    elif miner_hps <= 0:
-        assessment = "Chưa có hashrate từ AlphaPool hoặc miner đang dừng."
-    else:
-        assessment = "Tốc độ đang tối ưu theo dữ liệu AlphaPool hiện tại."
-    return {
-        "prl_24h": prl_24h,
-        "prl_7d": prl_24h * 7,
-        "usd_24h": prl_24h * price.get("price_usd", 0.0),
-        "vnd_24h": prl_24h * price.get("price_vnd", 0.0),
-        "assessment": assessment,
-        "miner": miner,
-        "pool": pool,
-        "price": price,
-    }
+    snapshot = collect_telemetry_snapshot(config, use_cache=True)
+    prediction = dict(snapshot.get("prediction", {}))
+    prediction.update(
+        {
+            "miner": snapshot.get("pool_miner", {}),
+            "local_miner": snapshot.get("local_miner", {}),
+            "effective_hashrate": snapshot.get("effective_hashrate", {}),
+            "pool": snapshot.get("pool", {}),
+            "price": snapshot.get("price", {}),
+            "safety": snapshot.get("safety", {}),
+        }
+    )
+    return prediction
 
 
 def render_hardware_chart(hours: int = 24) -> BytesIO | None:
@@ -780,7 +1101,26 @@ def render_hardware_chart(hours: int = 24) -> BytesIO | None:
     return buffer
 
 
-async def stream_journal_lines(service: str):
+async def _stream_should_stop(stop_check: Callable[[], Awaitable[bool] | bool] | None) -> bool:
+    if stop_check is None:
+        return False
+    try:
+        result = stop_check()
+        if hasattr(result, "__await__"):
+            result = await result  # type: ignore[assignment]
+        return bool(result)
+    except Exception as exc:
+        record_event("warning", "stream", "Journal stream stop check failed", str(exc))
+        return True
+
+
+async def stream_journal_lines(
+    service: str,
+    stop_check: Callable[[], Awaitable[bool] | bool] | None = None,
+    idle_timeout: float = 1.0,
+    max_seconds: float | None = None,
+    max_lines: int | None = None,
+):
     process = await asyncio.create_subprocess_exec(
         "journalctl",
         "-u",
@@ -795,13 +1135,29 @@ async def stream_journal_lines(service: str):
     )
     try:
         assert process.stdout is not None
+        started_at = time.monotonic()
+        emitted = 0
         while True:
-            line = await process.stdout.readline()
+            if await _stream_should_stop(stop_check):
+                break
+            if max_seconds is not None and time.monotonic() - started_at >= max_seconds:
+                break
+            if max_lines is not None and emitted >= max_lines:
+                break
+            try:
+                line = await asyncio.wait_for(process.stdout.readline(), timeout=max(0.2, idle_timeout))
+            except asyncio.TimeoutError:
+                continue
             if not line:
                 break
+            emitted += 1
             yield line.decode("utf-8", errors="replace").rstrip()
         if process.stderr is not None:
-            err = (await process.stderr.read()).decode("utf-8", errors="replace").strip()
+            try:
+                err_bytes = await asyncio.wait_for(process.stderr.read(), timeout=1)
+            except asyncio.TimeoutError:
+                err_bytes = b""
+            err = err_bytes.decode("utf-8", errors="replace").strip()
             if err:
                 yield f"[journalctl] {err}"
     finally:

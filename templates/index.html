@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pearl Miner Manager</title>
+    <title>Bảng điều khiển Pearl</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,8 +15,8 @@
     <div class="boot-loader" id="bootLoader" role="status" aria-live="polite">
         <div class="loader-ring"></div>
         <div>
-            <strong>Đang kết nối Pearl Miner</strong>
-            <span>Đồng bộ dữ liệu live...</span>
+            <strong>Đang mở bảng điều khiển</strong>
+            <span>Đang lấy số liệu mới nhất...</span>
         </div>
     </div>
     <div class="shell">
@@ -25,10 +25,10 @@
                 <div class="brand-mark">P</div>
                 <div>
                     <div class="brand-name">PearlMiner</div>
-                    <div class="brand-sub">AlphaPool Control</div>
+                    <div class="brand-sub">Quản lý máy đào</div>
                 </div>
             </div>
-            <nav class="nav" aria-label="Admin navigation">
+            <nav class="nav" aria-label="Chuyển màn hình">
                 <a class="nav-link active" href="#overview" data-view="overview">
                     <span class="nav-icon">⌁</span><span class="nav-text">Tổng quan</span>
                 </a>
@@ -39,13 +39,13 @@
                     <span class="nav-icon">⌘</span><span class="nav-text">Điều khiển</span>
                 </a>
                 <a class="nav-link" href="#terminal" data-view="terminal">
-                    <span class="nav-icon">▣</span><span class="nav-text">Terminal</span>
+                    <span class="nav-icon">▣</span><span class="nav-text">Nhật ký</span>
                 </a>
             </nav>
             <div class="side-status">
-                <div class="side-status-label">Miner service</div>
+                <div class="side-status-label">Máy đào</div>
                 <div class="side-status-value" id="sideStatus">N/A</div>
-                <div class="side-status-note" id="sideService">pearl-miner.service</div>
+                <div class="side-status-note" id="sideService">Máy đào Pearl</div>
             </div>
         </aside>
 
@@ -53,76 +53,79 @@
             <header class="topbar">
                 <div>
                     <h1 id="pageTitle">Tổng quan</h1>
-                    <p id="lastUpdated">Đang kết nối backend...</p>
+                    <p id="lastUpdated">Đang lấy số mới...</p>
                 </div>
                 <div class="top-actions">
                     <div class="live-chip" id="liveChip" data-state="loading">
                         <span class="live-dot"></span>
-                        <span id="liveState">Connecting</span>
+                        <span id="liveState">Đang cập nhật</span>
                     </div>
                     <div class="pool-pill" id="poolHashrate">AlphaPool: N/A</div>
-                    <button class="icon-button" id="refreshButton" type="button" title="Refresh" onclick="refreshAll(true)">↻</button>
-                    <div class="avatar" title="NTD Rig">NTD</div>
+                    <button class="icon-button" id="refreshButton" type="button" title="Làm mới" onclick="refreshAll(true)">↻</button>
+                    <div class="avatar" title="Máy NTD">NTD</div>
                 </div>
             </header>
 
             <section class="dashboard-view" id="overview" data-view="overview">
-                <section class="status-strip" aria-label="Trạng thái admin console">
+                <section class="status-strip" aria-label="Tình trạng hệ thống">
                     <article class="status-card" id="apiStateCard" data-state="loading">
                         <span class="status-dot"></span>
                         <div>
-                            <strong id="apiStateTitle">API đang tải</strong>
-                            <small id="apiStateDetail">Chờ phản hồi backend</small>
+                            <strong id="apiStateTitle">Dữ liệu đang tải</strong>
+                            <small id="apiStateDetail">Chờ máy quản lý trả số liệu</small>
                         </div>
                     </article>
                     <article class="status-card" id="minerStateCard" data-state="loading">
                         <span class="status-dot"></span>
                         <div>
-                            <strong id="minerStateTitle">Miner đang kiểm tra</strong>
-                            <small id="minerStateDetail">systemd/process chưa đồng bộ</small>
+                            <strong id="minerStateTitle">Máy đào đang kiểm tra</strong>
+                            <small id="minerStateDetail">Chưa biết máy đang chạy hay dừng</small>
                         </div>
                     </article>
                     <article class="status-card" id="poolStateCard" data-state="loading">
                         <span class="status-dot"></span>
                         <div>
-                            <strong id="poolStateTitle">Pool đang tải</strong>
+                            <strong id="poolStateTitle">AlphaPool đang tải</strong>
                             <small id="poolStateDetail">AlphaPool chưa có dữ liệu mới</small>
                         </div>
                     </article>
                     <article class="status-card" id="logStateCard" data-state="loading">
                         <span class="status-dot"></span>
                         <div>
-                            <strong id="logStateTitle">Logs đang kết nối</strong>
-                            <small id="logStateDetail">journalctl stream đang mở</small>
+                            <strong id="logStateTitle">Nhật ký đang nối</strong>
+                            <small id="logStateDetail">Đang mở nhật ký mới</small>
                         </div>
                     </article>
                 </section>
+                <div class="view-alert" id="overviewState" data-state="loading" role="status">
+                    Đang tải số liệu từ card RTX, máy đào và AlphaPool.
+                </div>
 
                 <section class="widgets">
                     <article class="metric">
-                        <div class="metric-label">Hashrate</div>
+                        <div class="metric-label">Tốc độ đào</div>
                         <div class="metric-value" id="hashrate">N/A</div>
-                        <div class="metric-foot" id="hashrateFoot">AlphaPool 1h/live</div>
+                        <div class="metric-foot" id="hashrateFoot">Đang chờ số liệu</div>
                     </article>
                     <article class="metric">
                         <div class="metric-label">Nhiệt độ</div>
                         <div class="metric-value" id="temp">N/A</div>
-                        <div class="metric-foot" id="tempFoot">Ngưỡng bảo vệ 80°C</div>
+                        <div class="metric-foot" id="tempFoot">Ngưỡng bảo vệ 90°C</div>
                     </article>
                     <article class="metric">
                         <div class="metric-label">Điện năng</div>
                         <div class="metric-value" id="power">N/A</div>
-                        <div class="metric-foot" id="fan">Fan N/A</div>
+                        <div class="metric-foot" id="fan">Quạt N/A</div>
                     </article>
                     <article class="metric">
-                        <div class="metric-label">VRAM</div>
+                        <div class="metric-label">Bộ nhớ RTX</div>
                         <div class="metric-value" id="vram">N/A</div>
                         <div class="metric-foot" id="gpuName">RTX 3060</div>
                     </article>
                     <article class="metric">
-                        <div class="metric-label">Coin hôm nay</div>
+                        <div class="metric-label">Pearl hôm nay</div>
                         <div class="metric-value" id="coinToday">N/A</div>
-                        <div class="metric-foot" id="revenue24">24h estimate N/A</div>
+                        <div class="metric-foot" id="revenue24">Ước tính 24h N/A</div>
                     </article>
                 </section>
 
@@ -130,25 +133,30 @@
                     <article class="panel compare-panel">
                         <div class="panel-head compact">
                             <div>
-                                <h2>Local vs Pool</h2>
-                                <p id="compareUpdated">Sẵn sàng nhận local hashrate khi API bổ sung field.</p>
+                                <h2>So sánh tốc độ</h2>
+                                <p id="compareUpdated">Đang chờ đủ dữ liệu để so sánh.</p>
                             </div>
+                        </div>
+                        <div class="source-ribbon" id="effectiveSourceCard" data-state="loading">
+                            <span>Số đang hiển thị</span>
+                            <strong id="effectiveSource">Đang tính</strong>
+                            <small id="effectiveSourceDetail">Dùng cho ô tốc độ và phần ước tính.</small>
                         </div>
                         <div class="compare-grid">
                             <div class="compare-item">
-                                <span>Local miner</span>
-                                <strong id="localHashrate">Chưa có field</strong>
-                                <small id="localHashrateFoot">local_hashrate* / local.hashrate_label</small>
+                                <span>Trên máy</span>
+                                <strong id="localHashrate">Chưa có dữ liệu</strong>
+                                <small id="localHashrateFoot">Số đo trên máy</small>
                             </div>
                             <div class="compare-item">
-                                <span>Pool reported</span>
+                                <span>AlphaPool</span>
                                 <strong id="poolMinerHashrate">N/A</strong>
-                                <small id="poolMinerHashrateFoot">AlphaPool worker/miner API</small>
+                                <small id="poolMinerHashrateFoot">Số AlphaPool thấy</small>
                             </div>
                             <div class="compare-item">
-                                <span>Delta</span>
+                                <span>Chênh lệch</span>
                                 <strong id="hashrateDelta">N/A</strong>
-                                <small id="hashrateDeltaFoot">Chờ đủ local + pool</small>
+                                <small id="hashrateDeltaFoot">Chờ đủ dữ liệu để so sánh</small>
                             </div>
                         </div>
                     </article>
@@ -159,29 +167,56 @@
                         <div class="panel-head">
                             <div>
                                 <h2>Sản lượng Pearl</h2>
-                                <p>Tích lũy và sản lượng theo ngày từ PostgreSQL</p>
+                                <p>Số Pearl đã ghi nhận theo ngày</p>
                             </div>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="rewardChart"></canvas>
+                            <div class="chart-state" id="rewardChartState" data-state="loading">Đang tải biểu đồ sản lượng...</div>
                         </div>
                     </article>
 
                     <article class="panel chart-panel">
                         <div class="panel-head">
                             <div>
-                                <h2>Hardware 24h</h2>
-                                <p>Hashrate và nhiệt độ từ bảng hardware_logs</p>
+                                <h2>Máy đào 24h</h2>
+                                <p>Tốc độ và nhiệt độ gần đây</p>
                             </div>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="hardwareChart"></canvas>
+                            <div class="chart-state" id="hardwareChartState" data-state="loading">Đang tải lịch sử máy đào...</div>
                         </div>
                     </article>
                 </section>
             </section>
 
             <section class="dashboard-view" id="finance" data-view="finance" hidden>
+                <div class="view-alert" id="financeState" data-state="loading" role="status">
+                    Đang tải số dư, giá PRL và máy đào trên AlphaPool.
+                </div>
+                <section class="mini-grid finance-kpis" aria-label="Tóm tắt tài chính">
+                    <article class="mini-card" id="financeAvailabilityCard" data-state="loading">
+                        <span>AlphaPool</span>
+                        <strong id="financeAvailability">Đang tải</strong>
+                        <small id="financeAvailabilityDetail">Chờ AlphaPool</small>
+                    </article>
+                    <article class="mini-card">
+                        <span>Giá PRL</span>
+                        <strong id="prlPriceKpi">N/A</strong>
+                        <small id="prlPriceDetail">Nguồn giá chưa có</small>
+                    </article>
+                    <article class="mini-card">
+                        <span>Giá trị chờ trả</span>
+                        <strong id="pendingValueKpi">N/A</strong>
+                        <small id="pendingPrlDetail">PRL đang chờ trả</small>
+                    </article>
+                    <article class="mini-card">
+                        <span>Máy đào</span>
+                        <strong id="workerKpi">N/A</strong>
+                        <small id="workerKpiDetail">Chờ AlphaPool</small>
+                    </article>
+                </section>
                 <section class="finance-dashboard">
                     <article class="panel">
                         <div class="panel-head">
@@ -191,11 +226,11 @@
                             </div>
                         </div>
                         <dl class="finance-list">
-                            <dt>Pending PRL</dt><dd id="balancePrl">N/A</dd>
+                            <dt>PRL đang chờ trả</dt><dd id="balancePrl">N/A</dd>
                             <dt>USD</dt><dd id="balanceUsd">N/A</dd>
                             <dt>VNĐ</dt><dd id="balanceVnd">N/A</dd>
-                            <dt>Shares 24h</dt><dd id="shares24">N/A</dd>
-                            <dt>Workers</dt><dd id="workers">N/A</dd>
+                            <dt>Lượt ghi nhận 24h</dt><dd id="shares24">N/A</dd>
+                            <dt>Máy đào</dt><dd id="workers">N/A</dd>
                         </dl>
                         <div class="assessment" id="assessment">Đang tải phân tích...</div>
                     </article>
@@ -208,12 +243,12 @@
                             </div>
                         </div>
                         <dl class="detail-list">
-                            <dt>Pool hashrate</dt><dd id="poolHashDetail">N/A</dd>
-                            <dt>Network</dt><dd id="networkHash">N/A</dd>
-                            <dt>Reward</dt><dd id="poolReward">N/A</dd>
-                            <dt>Fee</dt><dd id="poolFee">N/A</dd>
-                            <dt>Blocks 24h</dt><dd id="poolBlocks">N/A</dd>
-                            <dt>Mode</dt><dd id="poolMode">N/A</dd>
+                            <dt>Tốc độ AlphaPool</dt><dd id="poolHashDetail">N/A</dd>
+                            <dt>Tốc độ toàn mạng</dt><dd id="networkHash">N/A</dd>
+                            <dt>PRL mỗi lần trả thưởng</dt><dd id="poolReward">N/A</dd>
+                            <dt>Phí</dt><dd id="poolFee">N/A</dd>
+                            <dt>Lần thưởng 24h</dt><dd id="poolBlocks">N/A</dd>
+                            <dt>Cách trả thưởng</dt><dd id="poolMode">N/A</dd>
                         </dl>
                     </article>
                 </section>
@@ -221,17 +256,17 @@
                 <article class="panel">
                     <div class="panel-head">
                         <div>
-                            <h2>Workers</h2>
-                            <p>Trạng thái worker từ AlphaPool</p>
+                            <h2>AlphaPool thấy máy nào</h2>
+                            <p>Danh sách máy và tốc độ AlphaPool đang ghi nhận</p>
                         </div>
                     </div>
                     <div class="worker-table-wrap">
                         <table class="worker-table">
                             <thead>
                                 <tr>
-                                    <th>Worker</th>
-                                    <th>Live</th>
-                                    <th>1h</th>
+                                    <th>Máy</th>
+                                    <th>Bây giờ</th>
+                                    <th>1 giờ</th>
                                     <th>Trạng thái</th>
                                 </tr>
                             </thead>
@@ -244,28 +279,48 @@
             </section>
 
             <section class="dashboard-view" id="control" data-view="control" hidden>
+                <div class="view-alert" id="controlState" data-state="loading" role="status">
+                    Đang kiểm tra máy đào trước khi nhận lệnh.
+                </div>
+                <section class="mini-grid control-summary" aria-label="Tóm tắt điều khiển">
+                    <article class="mini-card" id="controlReadinessCard" data-state="loading">
+                        <span>Trạng thái</span>
+                        <strong id="controlReadiness">Đang kiểm tra</strong>
+                        <small id="controlReadinessDetail">Máy đang chạy hay dừng</small>
+                    </article>
+                    <article class="mini-card" id="controlSafetyCard" data-state="loading">
+                        <span>Bảo vệ</span>
+                        <strong id="controlSafetyLevel">N/A</strong>
+                        <small id="controlSafetyDetail">Chờ số nhiệt và tốc độ</small>
+                    </article>
+                    <article class="mini-card">
+                        <span>Card RTX</span>
+                        <strong id="controlGpuKpi">N/A</strong>
+                        <small id="controlGpuDetail">Nhiệt độ và điện năng</small>
+                    </article>
+                </section>
                 <section class="grid-two control-screen">
                     <article class="panel">
                         <div class="panel-head">
                             <div>
-                                <h2>Control Panel</h2>
-                                <p>Systemd và profile ép xung RTX 3060</p>
+                                <h2>Điều khiển máy đào</h2>
+                                <p>Bật/tắt máy đào và chọn mức chạy cho RTX 3060</p>
                             </div>
                         </div>
                         <div class="button-row">
                             <button class="btn primary control-action" type="button" onclick="controlMiner('start')">Bật máy</button>
                             <button class="btn danger control-action" type="button" onclick="controlMiner('stop')">Tắt máy</button>
-                            <button class="btn neutral control-action" type="button" onclick="controlMiner('restart')">Restart</button>
+                            <button class="btn neutral control-action" type="button" onclick="controlMiner('restart')">Khởi động lại</button>
                         </div>
                         <div class="profile-grid" id="profileGrid">
                             <button class="profile control-action" type="button" onclick="applyProfile('eco')">
-                                <span>Eco</span><small>100W / +0 / +500</small>
+                                <span>Tiết kiệm</span><small>Điện 100W · lõi +0 · bộ nhớ +500</small>
                             </button>
                             <button class="profile recommended control-action" type="button" onclick="applyProfile('balance')">
-                                <span>Balance</span><small>115W / +200 / +1000</small>
+                                <span>Cân bằng</span><small>Điện 115W · lõi +200 · bộ nhớ +1000</small>
                             </button>
                             <button class="profile control-action" type="button" onclick="applyProfile('max')">
-                                <span>Max</span><small>130W / +250 / +1200</small>
+                                <span>Tối đa</span><small>Điện 130W · lõi +250 · bộ nhớ +1200</small>
                             </button>
                         </div>
                         <div class="action-result" id="actionResult">Sẵn sàng nhận lệnh.</div>
@@ -274,32 +329,53 @@
                     <article class="panel">
                         <div class="panel-head">
                             <div>
-                                <h2>Trạng thái hệ thống</h2>
-                                <p id="systemUpdated">Đang tải systemd...</p>
+                                <h2>Tình trạng máy</h2>
+                                <p id="systemUpdated">Đang tải trạng thái máy...</p>
                             </div>
                         </div>
                         <dl class="detail-list">
-                            <dt>Service</dt><dd id="serviceNameDetail">pearl-miner.service</dd>
-                            <dt>Systemd</dt><dd id="systemState">N/A</dd>
-                            <dt>Process</dt><dd id="processState">N/A</dd>
-                            <dt>PID</dt><dd id="systemPid">N/A</dd>
-                            <dt>GPU</dt><dd id="controlGpuName">N/A</dd>
+                            <dt>Máy đào</dt><dd id="serviceNameDetail">Pearl</dd>
+                            <dt>Tình trạng</dt><dd id="systemState">N/A</dd>
+                            <dt>Đang chạy</dt><dd id="processState">N/A</dd>
+                            <dt>Mã chạy</dt><dd id="systemPid">N/A</dd>
+                            <dt>Card RTX</dt><dd id="controlGpuName">N/A</dd>
                             <dt>Nhiệt độ</dt><dd id="controlTemp">N/A</dd>
                         </dl>
                     </article>
                 </section>
+
+                <article class="panel event-panel">
+                    <div class="panel-head">
+                        <div>
+                            <h2>Lịch sử cảnh báo</h2>
+                            <p>Cảnh báo và thao tác gần nhất</p>
+                        </div>
+                    </div>
+                    <div class="event-list" id="eventList">
+                        <div class="event-empty">Đang tải lịch sử...</div>
+                    </div>
+                </article>
             </section>
 
             <section class="dashboard-view terminal-view" id="terminal" data-view="terminal" hidden>
                 <section class="terminal-panel">
                     <div class="terminal-head">
                         <div>
-                            <h2>Live Terminal</h2>
-                            <p>journalctl -u pearl-miner.service</p>
+                            <h2>Nhật ký trực tiếp</h2>
+                            <p>Dòng mới từ máy đào</p>
                         </div>
-                        <span id="logState">connecting</span>
+                        <span id="logState">đang nối</span>
                     </div>
-                    <pre id="terminalLog">Kết nối log stream...</pre>
+                    <div class="terminal-toolbar" aria-label="Nút nhật ký">
+                        <button class="terminal-tool" id="pauseLogButton" type="button" onclick="toggleLogPause()">Tạm dừng</button>
+                        <button class="terminal-tool" id="autoScrollButton" type="button" onclick="toggleAutoScroll()">Tự cuộn bật</button>
+                        <button class="terminal-tool" type="button" onclick="clearTerminal()">Xóa</button>
+                        <button class="terminal-tool" type="button" onclick="copyTerminal()">Sao chép</button>
+                    </div>
+                    <div class="terminal-state" id="terminalState" data-state="loading" role="status">
+                        Đang kết nối nhật ký...
+                    </div>
+                    <pre id="terminalLog">Đang mở nhật ký...</pre>
                 </section>
             </section>
         </main>
@@ -307,10 +383,10 @@
 
     <aside class="floating-terminal collapsed" id="floatingTerminal">
         <button class="floating-terminal-toggle" id="terminalToggle" type="button" onclick="toggleFloatingTerminal()" aria-expanded="false">
-            <span id="floatingTerminalLabel">Terminal</span>
-            <span id="floatingLogState">connecting</span>
+            <span id="floatingTerminalLabel">Nhật ký</span>
+            <span id="floatingLogState">đang nối</span>
         </button>
-        <pre id="floatingTerminalLog">Kết nối log stream...</pre>
+        <pre id="floatingTerminalLog">Đang mở nhật ký...</pre>
     </aside>
 
     <script>
@@ -320,11 +396,25 @@
         let rewardChart;
         let hardwareChart;
         let busy = false;
+        const urlToken = new URLSearchParams(window.location.search).get('token') || '';
         let controlToken = localStorage.getItem('pearlControlToken') || '';
+        if (urlToken.trim()) {
+            controlToken = urlToken.trim();
+            localStorage.setItem('pearlControlToken', controlToken);
+            const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
+            window.history.replaceState(null, '', cleanUrl);
+        }
         let lastLogLine = '';
+        let logSource;
+        let liveSource;
+        let terminalHasContent = false;
+        let logsPaused = false;
+        let autoScrollLogs = true;
+        let pendingLogLines = [];
         let profilesLoaded = false;
         let actionBusy = false;
         let firstDataRendered = false;
+        let initialLoaderHidden = false;
         let lastLiveAt = 0;
         let lastPollAt = 0;
         let staleTimer;
@@ -342,7 +432,7 @@
             overview: 'Tổng quan',
             finance: 'Tài chính',
             control: 'Điều khiển',
-            terminal: 'Terminal'
+            terminal: 'Nhật ký'
         };
 
         if ('scrollRestoration' in history) {
@@ -396,6 +486,105 @@
             return `${n(hps, 0)} H/s`;
         }
 
+        function friendlySource(source) {
+            const key = String(source || '').toLowerCase();
+            const sources = {
+                local: 'Đọc trực tiếp trên máy',
+                pool: 'AlphaPool đang ghi nhận',
+                pool_stale: 'AlphaPool đang dùng số cũ',
+                service_stopped: 'Máy đào đang dừng',
+                none: 'Chưa có tốc độ hợp lệ',
+                snapshot_error: 'Lỗi đọc số liệu',
+                unknown: 'Chưa rõ nguồn số liệu'
+            };
+            return sources[key] || (source ? String(source) : sources.unknown);
+        }
+
+        function friendlySafety(level) {
+            const key = String(level || '').toLowerCase();
+            if (key === 'critical') return 'Nguy hiểm';
+            if (key === 'warning') return 'Cần chú ý';
+            if (key === 'ok') return 'Ổn';
+            return 'Chưa rõ';
+        }
+
+        function friendlyReason(reason) {
+            let text = String(reason || '').trim();
+            if (!text) return '';
+            text = text
+                .replace(/^GPU /, 'Card ')
+                .replace('>= shutdown', 'đạt ngưỡng dừng')
+                .replace('>= warn', 'đạt ngưỡng cảnh báo')
+                .replace('Miner service chạy nhưng chưa có hashrate hợp lệ', 'Máy đào đang chạy nhưng chưa thấy tốc độ hợp lệ')
+                .replace('Local miner log stale', 'Số đo trên máy đã cũ')
+                .replace('AlphaPool API stale', 'AlphaPool đang trả số cũ')
+                .replace('Local miner báo hashrate 0', 'Máy đào báo tốc độ 0')
+                .replace('AlphaPool báo hashrate 0', 'AlphaPool báo tốc độ 0')
+                .replace('hashrate', 'tốc độ');
+            return text;
+        }
+
+        function friendlyReasonList(reasons, fallback = 'Không có cảnh báo') {
+            const items = Array.isArray(reasons) ? reasons.map(friendlyReason).filter(Boolean) : [];
+            return (items.length ? items : [fallback]).slice(0, 2).join(' · ');
+        }
+
+        function friendlyAssessment(text) {
+            return String(text || 'N/A')
+                .replaceAll('Miner', 'Máy đào')
+                .replaceAll('miner', 'máy đào')
+                .replaceAll('GPU', 'Card')
+                .replaceAll('Hashrate', 'Tốc độ')
+                .replaceAll('hashrate', 'tốc độ')
+                .replaceAll('local', 'trên máy')
+                .replaceAll('Local', 'Trên máy')
+                .replaceAll('pool API', 'AlphaPool')
+                .replaceAll('Pool API', 'AlphaPool')
+                .replaceAll('API', 'kết nối')
+                .replaceAll('stale', 'đã cũ')
+                .replaceAll('service', 'máy đào')
+                .replaceAll('watchdog', 'bảo vệ tự động')
+                .replace('Dự đoán doanh thu tạm đặt 0.', 'Ước tính doanh thu tạm đặt 0.');
+        }
+
+        function friendlyProfileName(profileId, label) {
+            const key = String(profileId || '').toLowerCase();
+            if (key === 'eco') return 'Tiết kiệm điện';
+            if (key === 'balance') return 'Cân bằng';
+            if (key === 'max') return 'Tối đa';
+            return label || profileId || 'Mức điện';
+        }
+
+        function actionLabel(action) {
+            const actions = {
+                start: 'bật máy',
+                stop: 'tắt máy',
+                restart: 'khởi động lại máy'
+            };
+            return actions[action] || String(action || 'thao tác');
+        }
+
+        function friendlyEventLevel(level) {
+            const key = String(level || '').toLowerCase();
+            if (key === 'critical') return 'Nguy hiểm';
+            if (key === 'error') return 'Lỗi';
+            if (key === 'warning') return 'Cảnh báo';
+            return 'Thông tin';
+        }
+
+        function friendlyEventCategory(category) {
+            const key = String(category || '').toLowerCase();
+            const categories = {
+                system: 'Hệ thống',
+                control: 'Điều khiển',
+                worker: 'Đọc số liệu',
+                watchdog: 'Bảo vệ',
+                api: 'Kết nối',
+                telegram: 'Telegram'
+            };
+            return categories[key] || (category ? String(category) : 'Hệ thống');
+        }
+
         function setText(id, value) {
             const node = document.getElementById(id);
             if (!node) return;
@@ -412,8 +601,21 @@
 
         function setAction(text, isError = false) {
             const node = document.getElementById('actionResult');
+            if (!node) return;
             node.textContent = text;
             node.classList.toggle('error', isError);
+        }
+
+        function setPanelState(id, state, text) {
+            const node = document.getElementById(id);
+            if (!node) return;
+            node.dataset.state = state;
+            node.textContent = text;
+        }
+
+        function setCardState(id, state) {
+            const node = document.getElementById(id);
+            if (node) node.dataset.state = state;
         }
 
         function setStatusCard(id, state, title, detail) {
@@ -424,6 +626,71 @@
             setText(`${id.replace('Card', 'Detail')}`, detail);
         }
 
+        function compactError(error) {
+            return error?.message || String(error || 'unknown_error');
+        }
+
+        function normalizeSnapshotPayload(payload = {}) {
+            const effective = payload.effective_hashrate || {};
+            if (payload.gpu || payload.system || payload.finance) {
+                const normalized = { ...payload };
+                normalized.finance = {
+                    ...(payload.finance || {}),
+                    pool: payload.finance?.pool || payload.pool || {},
+                    price: payload.finance?.price || payload.price || {},
+                    local_miner: payload.finance?.local_miner || payload.local_miner || payload.gpu?.local_miner || {},
+                    effective_hashrate: payload.finance?.effective_hashrate || effective,
+                    pool_miner: payload.finance?.pool_miner || payload.pool_miner || {}
+                };
+                normalized.gpu = {
+                    ...(payload.gpu || {}),
+                    status: payload.gpu?.status || payload.system?.status,
+                    is_active: payload.gpu?.is_active ?? payload.system?.is_active,
+                    process_running: payload.gpu?.process_running ?? payload.system?.process_running,
+                    hashrate_th: payload.gpu?.hashrate_th ?? effective.hashrate_th,
+                    hashrate_hps: payload.gpu?.hashrate_hps ?? effective.hashrate_hps,
+                    hashrate_label: payload.gpu?.hashrate_label || effective.hashrate_label,
+                    hashrate_source: payload.gpu?.hashrate_source || effective.source,
+                    hashrate_stale: payload.gpu?.hashrate_stale ?? Boolean(effective.stale),
+                    prediction: payload.gpu?.prediction || payload.prediction || normalized.finance.prediction || {},
+                    safety: payload.gpu?.safety || payload.safety || {},
+                    local_miner: payload.gpu?.local_miner || payload.local_miner || {}
+                };
+                normalized.safety = payload.safety || normalized.gpu.safety || {};
+                return normalized;
+            }
+            const finance = {
+                ...(payload.finance || {}),
+                price: payload.price || payload.finance?.price || {},
+                pool: payload.pool || payload.finance?.pool || {},
+                local_miner: payload.local_miner || payload.finance?.local_miner || {},
+                effective_hashrate: effective,
+                pool_miner: payload.pool_miner || payload.finance?.pool_miner || {}
+            };
+            const gpu = {
+                ...(payload.gpu || {}),
+                status: payload.system?.status,
+                is_active: payload.system?.is_active,
+                process_running: payload.system?.process_running,
+                hashrate_th: effective.hashrate_th,
+                hashrate_hps: effective.hashrate_hps,
+                hashrate_label: effective.hashrate_label,
+                hashrate_source: effective.source,
+                hashrate_stale: Boolean(effective.stale),
+                coin_today_prl: payload.coin_today_prl,
+                prediction: payload.prediction || finance.prediction || {},
+                safety: payload.safety || {},
+                local_miner: payload.local_miner || {}
+            };
+            return {
+                system: payload.system || {},
+                gpu,
+                finance,
+                safety: payload.safety || {},
+                timestamp: payload.timestamp
+            };
+        }
+
         function setControlsDisabled(disabled) {
             document.querySelectorAll('.control-action').forEach(button => {
                 button.disabled = disabled;
@@ -432,7 +699,8 @@
         }
 
         function finishInitialLoading() {
-            if (firstDataRendered) return;
+            if (initialLoaderHidden) return;
+            initialLoaderHidden = true;
             firstDataRendered = true;
             document.body.classList.remove('is-loading');
             document.getElementById('bootLoader')?.classList.add('is-hidden');
@@ -459,17 +727,86 @@
             if (!panel || !button) return;
             const collapsed = panel.classList.contains('collapsed');
             button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-            setText('floatingTerminalLabel', collapsed ? 'Terminal mở rộng' : 'Thu gọn terminal');
+            document.body.classList.toggle('terminal-open', !collapsed);
+            setText('floatingTerminalLabel', collapsed ? 'Mở nhật ký' : 'Thu gọn nhật ký');
         }
 
-        function appendLogLine(line) {
+        function updateTerminalState(state, text) {
+            setPanelState('terminalState', state, text);
+            setStatusCard(
+                'logStateCard',
+                state === 'error' ? 'offline' : (state === 'ok' ? 'online' : 'stale'),
+                state === 'ok' ? 'Nhật ký đang chạy' : (state === 'error' ? 'Mất nhật ký' : 'Nhật ký tạm dừng'),
+                text
+            );
+        }
+
+        function appendLogLineNow(line) {
+            const nextLine = String(line || '').trimEnd();
+            if (!nextLine) return;
+            const shouldReplacePlaceholder = !terminalHasContent;
+            terminalHasContent = true;
             for (const [id, limit] of [['terminalLog', 220], ['floatingTerminalLog', 90]]) {
                 const terminal = document.getElementById(id);
                 if (!terminal) continue;
-                terminal.textContent += `\n${line}`;
+                terminal.textContent = shouldReplacePlaceholder ? nextLine : `${terminal.textContent}\n${nextLine}`;
                 const lines = terminal.textContent.split('\n');
                 if (lines.length > limit) terminal.textContent = lines.slice(-limit).join('\n');
-                terminal.scrollTop = terminal.scrollHeight;
+                if (autoScrollLogs) terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function appendLogLine(line) {
+            if (logsPaused) {
+                pendingLogLines.push(String(line || ''));
+                if (pendingLogLines.length > 500) pendingLogLines = pendingLogLines.slice(-500);
+                updateTerminalState('paused', `${pendingLogLines.length} dòng mới đang tạm giữ`);
+                return;
+            }
+            appendLogLineNow(line);
+            updateTerminalState('ok', 'Nhật ký đang cập nhật');
+        }
+
+        function flushPendingLogs() {
+            const lines = pendingLogLines;
+            pendingLogLines = [];
+            for (const line of lines) appendLogLineNow(line);
+        }
+
+        function toggleLogPause() {
+            logsPaused = !logsPaused;
+            setText('pauseLogButton', logsPaused ? 'Tiếp tục' : 'Tạm dừng');
+            if (!logsPaused) {
+                flushPendingLogs();
+                updateTerminalState('ok', 'Nhật ký đang cập nhật');
+            } else {
+                updateTerminalState('paused', 'Đang tạm dừng hiển thị dòng mới');
+            }
+        }
+
+        function toggleAutoScroll() {
+            autoScrollLogs = !autoScrollLogs;
+            setText('autoScrollButton', autoScrollLogs ? 'Tự cuộn bật' : 'Tự cuộn tắt');
+        }
+
+        function clearTerminal() {
+            terminalHasContent = false;
+            pendingLogLines = [];
+            for (const id of ['terminalLog', 'floatingTerminalLog']) {
+                const terminal = document.getElementById(id);
+                if (terminal) terminal.textContent = 'Đã xóa nhật ký. Đang chờ dòng mới...';
+            }
+            updateTerminalState(logsPaused ? 'paused' : 'loading', logsPaused ? 'Đang tạm dừng hiển thị dòng mới' : 'Đang chờ dòng nhật ký mới');
+        }
+
+        async function copyTerminal() {
+            const terminal = document.getElementById('terminalLog');
+            const text = terminal?.textContent || '';
+            try {
+                await navigator.clipboard.writeText(text);
+                updateTerminalState('ok', 'Đã sao chép nhật ký');
+            } catch {
+                updateTerminalState('error', 'Trình duyệt hiện tại không cho sao chép nhật ký');
             }
         }
 
@@ -496,7 +833,7 @@
             if (location.hash !== `#${target}`) {
                 history.replaceState(null, '', `#${target}`);
             }
-            if (target === 'overview') {
+            if (target === 'overview' && (!rewardChart || !hardwareChart)) {
                 refreshCharts().catch(error => setAction(`Lỗi biểu đồ: ${error.message}`, true));
             }
         }
@@ -523,7 +860,8 @@
                 const row = document.createElement('tr');
                 const cell = document.createElement('td');
                 cell.colSpan = 4;
-                cell.textContent = 'Không có worker từ AlphaPool.';
+                cell.className = 'table-empty';
+                cell.textContent = 'AlphaPool chưa trả danh sách máy. Khi có dữ liệu, bảng này sẽ tự cập nhật.';
                 row.append(cell);
                 body.append(row);
                 return;
@@ -534,17 +872,35 @@
                 const live = document.createElement('td');
                 const hour = document.createElement('td');
                 const state = document.createElement('td');
+                name.dataset.label = 'Máy';
+                live.dataset.label = 'Bây giờ';
+                hour.dataset.label = '1 giờ';
+                state.dataset.label = 'Trạng thái';
                 name.textContent = worker.name || worker.worker || 'N/A';
-                live.textContent = worker.hashrate_live || worker.hashrateLive || worker.liveHashrate || worker.hashrate || 'N/A';
+                const liveValue = worker.hashrate_live || worker.hashrateLive || worker.liveHashrate || worker.hashrate || 'N/A';
+                live.textContent = liveValue;
                 hour.textContent = worker.hashrate_1h || worker.estHash1h || 'N/A';
                 const badge = document.createElement('span');
-                const isOffline = worker.online === false;
+                const marker = String(worker.online ?? worker.connected ?? worker.alive ?? worker.active ?? worker.status ?? '').toLowerCase();
+                const isOffline = worker.online === false || ['false', '0', 'offline', 'dead', 'inactive'].includes(marker) || parseHashrate(liveValue) === 0;
                 badge.className = isOffline ? 'state-badge offline' : 'state-badge online';
-                badge.textContent = isOffline ? 'Offline' : 'Online';
+                badge.textContent = isOffline ? 'Dừng' : 'Đang chạy';
                 state.append(badge);
                 row.append(name, live, hour, state);
                 body.append(row);
             }
+        }
+
+        function renderWorkersError(message) {
+            const body = document.getElementById('workerRows');
+            if (!body) return;
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            cell.className = 'table-empty error';
+            cell.textContent = `Không tải được danh sách máy: ${message}`;
+            row.append(cell);
+            body.replaceChildren(row);
         }
 
         function renderProfiles(profiles) {
@@ -560,40 +916,104 @@
                 button.type = 'button';
                 button.onclick = () => applyProfile(profileId);
                 const label = document.createElement('span');
-                label.textContent = profile.label || profileId;
+                label.textContent = friendlyProfileName(profileId, profile.label);
                 const details = document.createElement('small');
                 const clock = profile.gpu_clock_min && profile.gpu_clock_max
-                    ? ` / ${profile.gpu_clock_min}-${profile.gpu_clock_max}MHz`
+                    ? ` · khóa xung ${profile.gpu_clock_min}-${profile.gpu_clock_max}MHz`
                     : '';
-                details.textContent = `${profile.power_limit ?? 0}W${clock} / ${signed(profile.core_offset)} / ${signed(profile.memory_offset)}`;
+                details.textContent = `Điện ${profile.power_limit ?? 0}W${clock} · lõi ${signed(profile.core_offset)} · bộ nhớ ${signed(profile.memory_offset)}`;
                 button.append(label, details);
                 grid.append(button);
                 profileNames.set(profileId, label.textContent);
             }
         }
 
+        function authUrl(url) {
+            if (!controlToken) return url;
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}token=${encodeURIComponent(controlToken)}`;
+        }
+
+        function isProtectedApi(url) {
+            return url.startsWith('/api/control/')
+                || url === '/api/gpu/profile'
+                || url.startsWith('/api/admin/')
+                || url.startsWith('/api/mining/')
+                || url.startsWith('/api/gpu/')
+                || url.startsWith('/api/system/')
+                || url.startsWith('/api/chart_data');
+        }
+
+        function authRequiredMessage(message) {
+            const text = String(message || '');
+            return text.includes('control_auth_required')
+                || text.includes('dashboard_auth_required')
+                || text.includes('CONTROL_API_TOKEN');
+        }
+
+        function promptForToken() {
+            const entered = window.prompt('Nhập mã truy cập bảng điều khiển');
+            if (!entered) return false;
+            controlToken = entered.trim();
+            if (!controlToken) return false;
+            localStorage.setItem('pearlControlToken', controlToken);
+            restartEventStreams();
+            return true;
+        }
+
+        function restartEventStreams() {
+            if (logSource) {
+                logSource.close();
+                startLogs();
+            }
+            if (liveSource) {
+                liveSource.close();
+                startLiveMetrics();
+            }
+        }
+
         async function jsonFetch(url, options = {}) {
-            const headers = { ...(options.headers || {}) };
-            if (controlToken && (url.startsWith('/api/control/') || url === '/api/gpu/profile')) {
+            const { _authRetry, timeoutMs, ...fetchOptions } = options;
+            const headers = { ...(fetchOptions.headers || {}) };
+            if (controlToken && isProtectedApi(url)) {
                 headers.Authorization = `Bearer ${controlToken}`;
             }
-            const response = await fetch(url, { cache: 'no-store', ...options, headers });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.detail?.error || data.detail?.stderr || data.error || `HTTP ${response.status}`);
-            return data;
+            const method = String(fetchOptions.method || 'GET').toUpperCase();
+            const limit = timeoutMs ?? (method === 'GET' ? 12000 : 35000);
+            const controller = fetchOptions.signal ? null : new AbortController();
+            const timer = controller && limit > 0 ? window.setTimeout(() => controller.abort(), limit) : null;
+            try {
+                const response = await fetch(url, {
+                    cache: 'no-store',
+                    ...fetchOptions,
+                    headers,
+                    signal: fetchOptions.signal || controller?.signal
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const message = data.detail?.error || data.detail?.stderr || data.error || `HTTP ${response.status}`;
+                    if (!_authRetry && isProtectedApi(url) && authRequiredMessage(message) && promptForToken()) {
+                        return await jsonFetch(url, { ...options, _authRetry: true });
+                    }
+                    throw new Error(message);
+                }
+                return data;
+            } catch (error) {
+                if (error?.name === 'AbortError') {
+                    throw new Error(`${url} timeout sau ${Math.round(limit / 1000)}s`);
+                }
+                throw error;
+            } finally {
+                if (timer) window.clearTimeout(timer);
+            }
         }
 
         async function controlFetch(url, options = {}) {
             try {
                 return await jsonFetch(url, options);
             } catch (error) {
-                if (String(error.message).includes('control_auth_required')) {
-                    const entered = window.prompt('CONTROL_API_TOKEN');
-                    if (entered) {
-                        controlToken = entered.trim();
-                        localStorage.setItem('pearlControlToken', controlToken);
-                        return await jsonFetch(url, options);
-                    }
+                if (authRequiredMessage(error.message) && promptForToken()) {
+                    return await jsonFetch(url, options);
                 }
                 throw error;
             }
@@ -601,20 +1021,32 @@
 
         function renderSystem(status = {}) {
             setText('sideStatus', status.status || 'N/A');
-            setText('sideService', status.service || 'pearl-miner.service');
-            setText('serviceNameDetail', status.service || 'pearl-miner.service');
-            setText('systemState', status.systemd_state || 'N/A');
+            setText('sideService', status.is_active ? 'Đang quản lý' : 'Có thể bật lại');
+            setText('serviceNameDetail', 'Pearl');
+            setText('systemState', status.is_active ? 'Đang bật' : (status.systemd_state === 'failed' ? 'Có lỗi' : 'Đang dừng'));
             setText('processState', status.process_running ? 'Đang chạy' : 'Không chạy');
             setText('systemPid', status.pid || 'N/A');
             setText('controlGpuName', status.gpu_name || 'N/A');
             setText('systemUpdated', `Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')}`);
             document.body.dataset.running = status.is_active ? 'true' : 'false';
             if (status.is_active && status.process_running) {
-                setStatusCard('minerStateCard', 'online', 'Miner online', `${status.service || 'service'} · PID ${status.pid || 'N/A'}`);
+                setStatusCard('minerStateCard', 'online', 'Máy đào đang chạy', `Mã chạy ${status.pid || 'N/A'}`);
+                setPanelState('controlState', 'ok', 'Máy đào đang chạy ổn. Có thể đổi mức điện hoặc khởi động lại nếu cần.');
+                setCardState('controlReadinessCard', 'ok');
+                setText('controlReadiness', 'Sẵn sàng');
+                setText('controlReadinessDetail', `Mã chạy ${status.pid || 'N/A'} · đang bật`);
             } else if (status.process_running) {
-                setStatusCard('minerStateCard', 'stale', 'Process còn chạy', 'systemd không active, cần kiểm tra service');
+                setStatusCard('minerStateCard', 'stale', 'Trạng thái chưa khớp', 'Máy còn chạy nhưng hệ thống báo chưa bật');
+                setPanelState('controlState', 'warn', 'Máy đào vẫn còn chạy, nhưng hệ thống chưa nhận là đang bật. Nên kiểm tra trước khi khởi động lại.');
+                setCardState('controlReadinessCard', 'warn');
+                setText('controlReadiness', 'Cần kiểm tra');
+                setText('controlReadinessDetail', `Mã chạy ${status.pid || 'N/A'} · trạng thái chưa khớp`);
             } else {
-                setStatusCard('minerStateCard', 'offline', 'Miner offline', status.systemd_state || 'Đã dừng');
+                setStatusCard('minerStateCard', 'offline', 'Máy đào đang dừng', status.systemd_state === 'failed' ? 'Có lỗi khi chạy' : 'Có thể bật lại khi sẵn sàng');
+                setPanelState('controlState', 'warn', 'Máy đào đang dừng. Có thể bật lại bằng nút Bật máy nếu cấu hình đã đúng.');
+                setCardState('controlReadinessCard', 'warn');
+                setText('controlReadiness', 'Đang dừng');
+                setText('controlReadinessDetail', status.systemd_state === 'failed' ? 'Có lỗi khi chạy' : 'Chưa bật');
             }
         }
 
@@ -624,19 +1056,41 @@
 
         function renderMetrics(data = {}) {
             setText('hashrate', data.hashrate_label || `${n(data.hashrate_th, 2)} TH/s`);
-            setText('hashrateFoot', data.is_active ? 'Miner đang chạy' : 'Miner đang dừng');
+            setText('hashrateFoot', data.hashrate_source ? `${friendlySource(data.hashrate_source)}${data.hashrate_stale ? ' · số đã cũ' : ''}` : (data.is_active ? 'Máy đào đang chạy' : 'Máy đào đang dừng'));
             setText('temp', Number.isFinite(Number(data.temp_c)) ? `${n(data.temp_c, 0)}°C` : 'N/A');
-            setText('tempFoot', data.temp_c >= 80 ? 'Đang vượt ngưỡng bảo vệ' : 'Nhiệt độ trong vùng kiểm soát');
+            const stopTemp = Number(data.safety?.temp_shutdown_c || 90);
+            const warnTemp = Number(data.safety?.temp_warn_c || 84);
+            const tempValue = Number(data.temp_c);
+            setText('tempFoot', tempValue >= stopTemp ? `Vượt ngưỡng dừng ${n(stopTemp, 0)}°C` : (tempValue >= warnTemp ? `Vùng cảnh báo ${n(warnTemp, 0)}°C` : `Ổn dưới ${n(warnTemp, 0)}°C`));
             setText('power', Number.isFinite(Number(data.power_w)) ? `${n(data.power_w, 1)} W` : 'N/A');
-            setText('fan', `Fan ${n(data.fan_speed, 0)}%`);
+            setText('fan', `Quạt ${n(data.fan_speed, 0)}%`);
             setText('vram', `${n(data.vram_gb, 2)} / ${n(data.vram_total_gb, 1)} GB`);
             setText('gpuName', data.gpu_name || 'N/A');
             setText('controlGpuName', data.gpu_name || 'N/A');
             setText('controlTemp', Number.isFinite(Number(data.temp_c)) ? `${n(data.temp_c, 0)}°C` : 'N/A');
+            setText('controlGpuKpi', data.gpu_name || 'N/A');
+            setText('controlGpuDetail', `${Number.isFinite(tempValue) ? `${n(tempValue, 0)}°C` : 'N/A'} · ${Number.isFinite(Number(data.power_w)) ? `${n(data.power_w, 1)} W` : 'N/A'}`);
             setText('coinToday', `${n(data.coin_today_prl, 6)} PRL`);
-            setText('revenue24', `24h: ${n(data.prediction?.prl_24h, 6)} PRL`);
-            setText('assessment', data.prediction?.assessment || 'N/A');
+            setText('revenue24', `Ước tính 24h: ${n(data.prediction?.prl_24h, 6)} PRL`);
+            setText('assessment', friendlyAssessment(data.prediction?.assessment));
             setText('lastUpdated', `Cập nhật lúc ${new Date().toLocaleString('vi-VN')}`);
+            setText('effectiveSource', friendlySource(data.hashrate_source));
+            setText('effectiveSourceDetail', `${data.hashrate_label || '0 H/s'}${data.hashrate_stale ? ' · số đã cũ' : ''}`);
+            setCardState('effectiveSourceCard', data.hashrate_stale ? 'warn' : 'ok');
+            setPanelState(
+                'overviewState',
+                data.available === false ? 'warn' : 'ok',
+                data.available === false
+                    ? `Chưa đọc đủ số từ RTX: ${data.error || 'kiểm tra driver NVIDIA'}`
+                    : `Số liệu đã cập nhật · ${data.gpu_name || 'RTX'} · tốc độ ${data.hashrate_label || '0 H/s'}`
+            );
+            if (data.safety?.level) {
+                const level = data.safety.level === 'critical' ? 'offline' : (data.safety.level === 'warning' ? 'stale' : 'online');
+                setStatusCard('apiStateCard', level, `Bảo vệ ${friendlySafety(data.safety.level)}`, friendlyReasonList(data.safety.reasons, 'Số liệu đang ổn'));
+                setCardState('controlSafetyCard', data.safety.level === 'critical' ? 'error' : (data.safety.level === 'warning' ? 'warn' : 'ok'));
+                setText('controlSafetyLevel', friendlySafety(data.safety.level));
+                setText('controlSafetyDetail', friendlyReasonList(data.safety.reasons));
+            }
             renderHashrateCompare(data, null);
             finishInitialLoading();
         }
@@ -646,35 +1100,53 @@
         }
 
         function renderFinance(data = {}) {
-            setText('balancePrl', `${n(data.balance_prl, 8)} PRL`);
-            setText('balanceUsd', moneyUsd.format(Number(data.balance_usd || 0)));
-            setText('balanceVnd', moneyVnd.format(Number(data.balance_vnd || 0)));
-            setText('shares24', n(data.shares24h, 0));
+            const financeHasData = data.available !== false || data.stale === true;
+            setText('balancePrl', financeHasData ? `${n(data.balance_prl, 8)} PRL` : 'N/A');
+            setText('balanceUsd', financeHasData ? moneyUsd.format(Number(data.balance_usd || 0)) : 'N/A');
+            setText('balanceVnd', financeHasData ? moneyVnd.format(Number(data.balance_vnd || 0)) : 'N/A');
+            setText('shares24', financeHasData ? n(data.shares24h, 0) : 'N/A');
             const workers = Array.isArray(data.workers) ? data.workers : [];
             const activeWorkers = workers.filter(w => w.online !== false && (w.hashrate_live || w.hashrateLive || w.liveHashrate || w.hashrate)).length;
             setText('workers', workers.length ? String(activeWorkers || workers.length) : 'N/A');
-            setText('priceSource', `Nguồn giá: ${data.price?.source || 'N/A'} · PRL ${moneyUsd.format(Number(data.price?.price_usd || 0))}`);
-            const poolHash = data.pool?.pool_hashrate_label || data.pool?.raw?.pool?.hashrate || data.pool?.pool_hashrate_hps;
+            const priceUsd = Number(data.price?.price_usd || 0);
+            setText('priceSource', `Nguồn giá: ${data.price?.source || 'N/A'} · PRL ${moneyUsd.format(priceUsd)}`);
+            setText('prlPriceKpi', priceUsd > 0 ? moneyUsd.format(priceUsd) : 'N/A');
+            setText('prlPriceDetail', data.price?.available === false ? 'Nguồn giá chưa có dữ liệu' : `Nguồn ${data.price?.source || 'N/A'}`);
+            setText('pendingValueKpi', financeHasData ? moneyUsd.format(Number(data.balance_usd || 0)) : 'N/A');
+            setText('pendingPrlDetail', financeHasData ? `${n(data.balance_prl, 6)} PRL · ${moneyVnd.format(Number(data.balance_vnd || 0))}` : 'Chờ số dư chờ trả');
+            const poolHash = data.pool?.pool_hashrate_label || data.pool?.raw?.pool?.hashrate || (data.pool?.pool_hashrate_hps ? formatHashrate(data.pool.pool_hashrate_hps) : null);
             setText('poolHashrate', `AlphaPool: ${poolHash || 'N/A'}`);
             setText('poolHashDetail', String(poolHash || 'N/A'));
-            setText('networkHash', String(data.pool?.network_hashrate_label || data.pool?.raw?.coins?.[0]?.network_hash || data.pool?.network_hashrate_hps || 'N/A'));
+            setText('networkHash', String(data.pool?.network_hashrate_label || data.pool?.raw?.coins?.[0]?.network_hash || (data.pool?.network_hashrate_hps ? formatHashrate(data.pool.network_hashrate_hps) : 'N/A')));
             setText('poolReward', `${n(data.pool?.reward_prl, 6)} PRL`);
             setText('poolFee', `${n(data.pool?.fee_percent, 2)}%`);
             setText('poolBlocks', n(data.pool?.blocks24h, 0));
             setText('poolMode', data.mode || 'N/A');
-            setText('poolUpdated', `Cập nhật AlphaPool lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+            setText('poolUpdated', `AlphaPool cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')}`);
+            const poolState = data.available === false ? (data.stale ? 'warn' : 'error') : 'ok';
+            const poolMessage = data.available === false
+                ? (data.stale ? `AlphaPool đang lỗi tạm thời, đang dùng số gần nhất ${n(data.stale_age_seconds, 0)}s trước.` : `AlphaPool chưa trả dữ liệu: ${data.error || 'mất kết nối'}.`)
+                : `AlphaPool đã cập nhật · ${workers.length ? `${activeWorkers || 0}/${workers.length} máy đang có tốc độ` : 'chưa thấy danh sách máy'}.`;
+            setPanelState('financeState', poolState, poolMessage);
+            setCardState('financeAvailabilityCard', poolState);
+            setText('financeAvailability', data.available === false ? (data.stale ? 'Số cũ' : 'Mất kết nối') : 'Có dữ liệu');
+            setText('financeAvailabilityDetail', data.stale ? `Số gần nhất ${n(data.stale_age_seconds, 0)}s trước` : 'AlphaPool đã trả dữ liệu');
+            setText('workerKpi', workers.length ? `${activeWorkers || 0}/${workers.length}` : '0');
+            setText('workerKpiDetail', workers.length ? 'Máy đang có tốc độ' : 'AlphaPool chưa thấy máy nào');
             setStatusCard(
                 'poolStateCard',
-                data.available === false ? 'offline' : 'online',
-                data.available === false ? 'Pool offline' : 'Pool synced',
-                data.source_url || 'AlphaPool finance endpoint'
+                data.available === false ? (data.stale ? 'stale' : 'offline') : 'online',
+                data.available === false ? (data.stale ? 'AlphaPool số cũ' : 'Mất AlphaPool') : 'AlphaPool đã cập nhật',
+                data.stale ? `Số gần nhất ${n(data.stale_age_seconds, 0)}s trước` : 'Số dư và tốc độ đã cập nhật'
             );
             renderHashrateCompare(null, data);
             renderWorkers(workers);
         }
 
         function getLocalHashrate(data = {}) {
-            const local = data.local || data.local_miner || {};
+            const local = data.local || data.local_miner || data.localMiner || {};
+            if (data.local_hashrate_th !== undefined) return `${data.local_hashrate_th} TH/s`;
+            if (local.hashrate_th !== undefined) return `${local.hashrate_th} TH/s`;
             return (
                 data.local_hashrate_label ||
                 data.local_hashrate ||
@@ -687,13 +1159,19 @@
         }
 
         function getPoolMinerHashrate(data = {}) {
+            const poolMiner = data.pool_miner || data.poolMiner || {};
+            if (data.pool_miner_hashrate_th !== undefined) return `${data.pool_miner_hashrate_th} TH/s`;
+            if (data.pool_hashrate_th !== undefined) return `${data.pool_hashrate_th} TH/s`;
+            if (poolMiner.hashrate_th !== undefined) return `${poolMiner.hashrate_th} TH/s`;
             return (
                 data.hashrate_label ||
                 data.pool_hashrate_label ||
                 data.pool_miner_hashrate_label ||
+                poolMiner.hashrate_label ||
                 data.hashrate_hps ||
                 data.pool_hashrate_hps ||
                 data.pool_miner_hashrate_hps ||
+                poolMiner.hashrate_hps ||
                 null
             );
         }
@@ -703,19 +1181,39 @@
             window.latestFinance = financeData || window.latestFinance || {};
             const metrics = window.latestMetrics || {};
             const finance = window.latestFinance || {};
+            const running = Boolean(metrics.is_active && metrics.process_running);
             const localValue = getLocalHashrate(metrics) || getLocalHashrate(finance);
             const poolValue = getPoolMinerHashrate(finance) || getPoolMinerHashrate(metrics);
-            const localHps = parseHashrate(localValue);
+            const rawLocalHps = parseHashrate(localValue);
             const poolHps = parseHashrate(poolValue);
+            const local = (metrics.local_miner || finance.local_miner || {});
+            const poolMiner = (finance.pool_miner || metrics.pool_miner || {});
+            const localIsOld = Boolean(local.stale || metrics.hashrate_stale);
+            const poolIsOld = Boolean(poolMiner.stale || finance.stale);
+            const localHps = running ? rawLocalHps : 0;
 
-            setText('localHashrate', localHps === null ? 'Chưa có field' : formatHashrate(localHps));
-            setText('localHashrateFoot', localHps === null ? 'Placeholder cho local_hashrate*' : 'Local miner API');
+            setText('localHashrate', localHps === null ? 'Chưa có dữ liệu' : formatHashrate(localHps));
+            setText(
+                'localHashrateFoot',
+                !running
+                    ? 'Máy đào đang dừng, không dùng số cũ'
+                    : (localHps === null ? 'Chờ số đo trên máy' : `Số đo trên máy${localIsOld ? ' · đã cũ' : ''}`)
+            );
             setText('poolMinerHashrate', poolHps === null ? 'N/A' : formatHashrate(poolHps));
-            setText('poolMinerHashrateFoot', poolHps === null ? 'Chờ AlphaPool miner API' : 'Pool reported miner rate');
+            setText(
+                'poolMinerHashrateFoot',
+                poolHps === null ? 'Chờ AlphaPool trả tốc độ' : `AlphaPool đang thấy${poolIsOld ? ' · số đã cũ' : ''}`
+            );
 
-            if (localHps === null || poolHps === null || localHps <= 0) {
+            if (!running) {
                 setText('hashrateDelta', 'N/A');
-                setText('hashrateDeltaFoot', 'Chờ đủ local + pool');
+                setText('hashrateDeltaFoot', 'Máy đang dừng nên không so sánh');
+            } else if (localIsOld || poolIsOld) {
+                setText('hashrateDelta', 'N/A');
+                setText('hashrateDeltaFoot', 'Có số đã cũ, chờ lần cập nhật mới');
+            } else if (localHps === null || poolHps === null || localHps <= 0) {
+                setText('hashrateDelta', 'N/A');
+                setText('hashrateDeltaFoot', 'Chờ đủ dữ liệu để so sánh');
             } else {
                 const delta = poolHps - localHps;
                 const percent = (delta / localHps) * 100;
@@ -729,14 +1227,23 @@
             renderFinance(await jsonFetch('/api/mining/finance'));
         }
 
-        function applyLivePayload(payload = {}) {
+        function applyLivePayload(rawPayload = {}) {
+            const payload = normalizeSnapshotPayload(rawPayload);
             if (payload.system) renderSystem(payload.system);
             if (payload.gpu) renderMetrics(payload.gpu);
             if (payload.finance) renderFinance(payload.finance);
+            if (payload.safety?.level) {
+                const level = payload.safety.level === 'critical' ? 'offline' : (payload.safety.level === 'warning' ? 'stale' : 'online');
+                setStatusCard('apiStateCard', level, `Bảo vệ ${friendlySafety(payload.safety.level)}`, friendlyReasonList(payload.safety.reasons, 'Số liệu đang ổn'));
+            }
             if (payload.timestamp) {
-                setText('lastUpdated', `Live ${new Date(payload.timestamp).toLocaleString('vi-VN')}`);
+                setText('lastUpdated', `Cập nhật trực tiếp ${new Date(payload.timestamp).toLocaleString('vi-VN')}`);
             }
             finishInitialLoading();
+        }
+
+        async function refreshSnapshot() {
+            applyLivePayload(await jsonFetch('/api/admin/snapshot'));
         }
 
         async function refreshProfiles(force = false) {
@@ -746,14 +1253,89 @@
             profilesLoaded = true;
         }
 
+        function renderEvents(events = []) {
+            const list = document.getElementById('eventList');
+            if (!list) return;
+            list.replaceChildren();
+            if (!Array.isArray(events) || events.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'event-empty';
+                empty.textContent = 'Chưa có cảnh báo hoặc thao tác nào.';
+                list.append(empty);
+                return;
+            }
+            for (const event of events.slice(0, 12)) {
+                const item = document.createElement('article');
+                item.className = 'event-item';
+                item.dataset.level = event.level || 'info';
+                const meta = document.createElement('div');
+                meta.className = 'event-meta';
+                const level = document.createElement('span');
+                level.textContent = friendlyEventLevel(event.level);
+                const category = document.createElement('span');
+                category.textContent = friendlyEventCategory(event.category);
+                const time = document.createElement('span');
+                time.textContent = event.timestamp ? new Date(event.timestamp).toLocaleString('vi-VN') : 'N/A';
+                meta.append(level, category, time);
+                const message = document.createElement('strong');
+                message.textContent = event.message || 'N/A';
+                item.append(meta, message);
+                if (event.details) {
+                    const details = document.createElement('p');
+                    details.textContent = event.details;
+                    item.append(details);
+                }
+                list.append(item);
+            }
+        }
+
+        async function refreshEvents() {
+            const data = await jsonFetch('/api/admin/events?limit=20');
+            renderEvents(data.events || []);
+        }
+
+        function handleRefreshResult(label, result) {
+            if (result.status === 'fulfilled') return false;
+            const message = compactError(result.reason);
+            if (label === 'snapshot') {
+                setPanelState('overviewState', 'error', `Không tải được số liệu mới: ${message}`);
+                setPanelState('financeState', 'error', `Không tải được tài chính mới: ${message}`);
+                setPanelState('controlState', 'error', `Không tải được trạng thái điều khiển: ${message}`);
+                setStatusCard('apiStateCard', firstDataRendered ? 'stale' : 'offline', firstDataRendered ? 'Dữ liệu đã cũ' : 'Mất dữ liệu', message);
+            } else if (label === 'profiles') {
+                setAction(`Không tải được các mức điện: ${message}`, true);
+            } else if (label === 'events') {
+                renderEvents([{ level: 'warning', category: 'api', message: 'Không tải được lịch sử cảnh báo', details: message, timestamp: new Date().toISOString() }]);
+            } else if (label === 'charts') {
+                setPanelState('rewardChartState', 'error', `Không tải được biểu đồ: ${message}`);
+                setPanelState('hardwareChartState', 'error', `Không tải được biểu đồ: ${message}`);
+            }
+            return true;
+        }
+
         async function refreshCharts() {
             const data = await jsonFetch('/api/chart_data');
             if (!window.Chart) {
-                setAction('Chart.js chưa tải được, biểu đồ sẽ thử lại sau.', true);
+                const message = 'Thư viện vẽ biểu đồ chưa tải được, hệ thống sẽ thử lại sau.';
+                setPanelState('rewardChartState', 'error', message);
+                setPanelState('hardwareChartState', 'error', message);
+                setAction(message, true);
                 return;
             }
             const rewardCtx = document.getElementById('rewardChart');
             const hardwareCtx = document.getElementById('hardwareChart');
+            const rewardHasData = Boolean((data.labels || []).length && ((data.cumulative || []).length || (data.daily || []).length));
+            const hardwareHasData = Boolean((data.history_labels || []).length && ((data.hashrate_th || []).length || (data.temp_c || []).length));
+            setPanelState(
+                'rewardChartState',
+                rewardHasData ? 'ok' : 'empty',
+                rewardHasData ? `Đã tải ${data.labels.length} điểm sản lượng.` : 'Chưa có dữ liệu sản lượng để vẽ biểu đồ.'
+            );
+            setPanelState(
+                'hardwareChartState',
+                hardwareHasData ? 'ok' : 'empty',
+                hardwareHasData ? `Đã tải ${data.history_labels.length} điểm trong 24h.` : 'Chưa có dữ liệu máy đào trong 24h gần đây.'
+            );
             if (rewardChart) rewardChart.destroy();
             rewardChart = new Chart(rewardCtx, {
                 data: {
@@ -787,20 +1369,20 @@
                     labels: data.history_labels || [],
                     datasets: [
                         {
-	                            type: 'line',
-	                            label: 'Hashrate TH/s',
-	                            unit: 'TH/s',
-	                            data: data.hashrate_th || [],
+                            type: 'line',
+                            label: 'Tốc độ đào TH/s',
+                            unit: 'TH/s',
+                            data: data.hashrate_th || [],
                             borderColor: '#0f766e',
                             backgroundColor: 'rgba(15,118,110,.12)',
                             tension: .3,
                             yAxisID: 'y'
                         },
                         {
-	                            type: 'line',
-	                            label: 'Nhiệt độ °C',
-	                            unit: '°C',
-	                            data: data.temp_c || [],
+                            type: 'line',
+                            label: 'Nhiệt độ °C',
+                            unit: '°C',
+                            data: data.temp_c || [],
                             borderColor: '#dc2626',
                             backgroundColor: 'rgba(220,38,38,.10)',
                             tension: .3,
@@ -840,12 +1422,21 @@
             busy = true;
             document.body.classList.add('is-refreshing');
             try {
-                await Promise.all([refreshSystem(), refreshMetrics(), refreshFinance(), refreshProfiles(forceCharts)]);
+                const tasks = [
+                    ['snapshot', refreshSnapshot()],
+                    ['profiles', refreshProfiles(forceCharts)],
+                    ['events', refreshEvents()]
+                ];
+                const results = await Promise.allSettled(tasks.map(([, promise]) => promise));
+                const hasFailure = results.some((result, index) => handleRefreshResult(tasks[index][0], result));
                 lastPollAt = Date.now();
-                setStatusCard('apiStateCard', 'online', 'API online', `Poll ${formatAge(lastPollAt)}`);
-                if (forceCharts) await refreshCharts();
+                setStatusCard('apiStateCard', hasFailure ? 'stale' : 'online', hasFailure ? 'Dữ liệu thiếu một phần' : 'Đã cập nhật', `Lần kiểm tra ${formatAge(lastPollAt)}`);
+                if (forceCharts) {
+                    const chartResult = await Promise.allSettled([refreshCharts()]);
+                    handleRefreshResult('charts', chartResult[0]);
+                }
             } catch (error) {
-                setStatusCard('apiStateCard', firstDataRendered ? 'stale' : 'offline', firstDataRendered ? 'API stale' : 'API offline', error.message);
+                setStatusCard('apiStateCard', firstDataRendered ? 'stale' : 'offline', firstDataRendered ? 'Dữ liệu đang chậm' : 'Mất kết nối', error.message);
                 setAction(`Lỗi cập nhật: ${error.message}`, true);
             } finally {
                 busy = false;
@@ -858,13 +1449,14 @@
             if (actionBusy) return;
             actionBusy = true;
             setControlsDisabled(true);
-            setAction(`Đang gửi lệnh ${action}...`);
+            const label = actionLabel(action);
+            setAction(`Đang ${label}...`);
             try {
                 await controlFetch(`/api/control/${action}`, { method: 'POST' });
-                setAction(`Đã gửi lệnh ${action} thành công.`);
+                setAction(`Đã ${label} thành công.`);
                 await refreshAll(false);
             } catch (error) {
-                setAction(`Lệnh thất bại: ${error.message}`, true);
+                setAction(`Không thể ${label}: ${error.message}`, true);
             } finally {
                 actionBusy = false;
                 setControlsDisabled(false);
@@ -876,17 +1468,17 @@
             actionBusy = true;
             setControlsDisabled(true);
             const label = profileNames.get(profile) || profile;
-            setAction(`Đang áp dụng profile ${label}...`);
+            setAction(`Đang áp dụng mức điện ${label}...`);
             try {
                 await controlFetch('/api/gpu/profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ profile })
                 });
-                setAction(`Đã áp dụng profile ${label}.`);
+                setAction(`Đã áp dụng mức điện ${label}.`);
                 await refreshAll(false);
             } catch (error) {
-                setAction(`Profile thất bại: ${error.message}`, true);
+                setAction(`Không áp dụng được mức điện: ${error.message}`, true);
             } finally {
                 actionBusy = false;
                 setControlsDisabled(false);
@@ -896,13 +1488,14 @@
         function startLogs() {
             const state = document.getElementById('logState');
             const floatingState = document.getElementById('floatingLogState');
-            const source = new EventSource('/api/logs/stream');
-            source.onopen = () => {
-                state.textContent = 'connected';
-                floatingState.textContent = 'connected';
-                setStatusCard('logStateCard', 'online', 'Logs online', 'journalctl stream connected');
+            if (logSource) logSource.close();
+            logSource = new EventSource(authUrl('/api/logs/stream'));
+            logSource.onopen = () => {
+                state.textContent = 'đã nối';
+                floatingState.textContent = 'đã nối';
+                updateTerminalState('ok', 'Nhật ký đang cập nhật');
             };
-            source.onmessage = event => {
+            logSource.onmessage = event => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.line === lastLogLine) return;
@@ -912,43 +1505,53 @@
                     appendLogLine(event.data);
                 }
             };
-            source.onerror = () => {
-                state.textContent = 'reconnecting';
-                floatingState.textContent = 'reconnecting';
-                setStatusCard('logStateCard', 'stale', 'Logs reconnecting', 'SSE log stream đang thử lại');
+            logSource.onerror = () => {
+                state.textContent = terminalHasContent ? 'đang theo dõi' : 'đang nối lại';
+                floatingState.textContent = terminalHasContent ? 'đã nối' : 'đang nối lại';
+                updateTerminalState(
+                    terminalHasContent ? 'ok' : 'loading',
+                    terminalHasContent ? 'Nhật ký đang theo dõi dòng mới' : 'Đang thử nối lại nhật ký'
+                );
             };
         }
 
         function startLiveMetrics() {
-            const source = new EventSource('/api/live');
-            source.onopen = () => {
-                setLiveState('Live', 'online');
-                setText('lastUpdated', 'Live metrics connected');
+            if (liveSource) liveSource.close();
+            liveSource = new EventSource(authUrl('/api/live'));
+            liveSource.onopen = () => {
+                setLiveState('Trực tiếp', 'online');
+                setText('lastUpdated', 'Đã nối cập nhật trực tiếp');
             };
-            source.onmessage = event => {
+            liveSource.onmessage = event => {
                 try {
                     lastLiveAt = Date.now();
-                    setLiveState('Live', 'online');
+                    setLiveState('Trực tiếp', 'online');
                     applyLivePayload(JSON.parse(event.data));
                 } catch {
-                    setLiveState('Parse error', 'stale');
-                    setText('lastUpdated', 'Live metrics parse error');
+                    setLiveState('Dữ liệu lỗi', 'stale');
+                    setText('lastUpdated', 'Dữ liệu trực tiếp bị lỗi định dạng');
+                    setPanelState('overviewState', 'warn', 'Dữ liệu trực tiếp đang lỗi, hệ thống vẫn tự kiểm tra định kỳ.');
                 }
             };
-            source.onerror = () => {
-                setLiveState(firstDataRendered ? 'Stale' : 'Offline', firstDataRendered ? 'stale' : 'offline');
-                setText('lastUpdated', 'Live metrics reconnecting...');
+            liveSource.onerror = () => {
+                if (lastLiveAt && Date.now() - lastLiveAt <= 10000) {
+                    setLiveState('Trực tiếp', 'online');
+                    return;
+                }
+                setLiveState(firstDataRendered ? 'Chậm' : 'Mất nối', firstDataRendered ? 'stale' : 'offline');
+                setText('lastUpdated', 'Đang nối lại cập nhật trực tiếp...');
+                if (!firstDataRendered) setPanelState('overviewState', 'error', 'Chưa nhận được dữ liệu trực tiếp, đang chờ lần kiểm tra định kỳ.');
             };
         }
 
         function watchStaleState() {
             staleTimer = window.setInterval(() => {
                 if (lastLiveAt && Date.now() - lastLiveAt > 30000) {
-                    setLiveState('Stale', 'stale');
-                    setText('lastUpdated', `Live stale · lần cuối ${formatAge(lastLiveAt)}`);
+                    setLiveState('Chậm', 'stale');
+                    setText('lastUpdated', `Dữ liệu trực tiếp chậm · lần cuối ${formatAge(lastLiveAt)}`);
                 }
                 if (lastPollAt && Date.now() - lastPollAt > 45000) {
-                    setStatusCard('apiStateCard', 'stale', 'API stale', `Poll cuối ${formatAge(lastPollAt)}`);
+                    setStatusCard('apiStateCard', 'stale', 'Dữ liệu đang chậm', `Lần kiểm tra cuối ${formatAge(lastPollAt)}`);
                 }
             }, 5000);
         }

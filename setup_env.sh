@@ -124,8 +124,8 @@ if [[ ! "${GPU_INDEX:-0}" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 if [[ "${WEB_HOST:-127.0.0.1}" == "0.0.0.0" && -z "${CONTROL_API_TOKEN:-}" ]]; then
-  echo "WARN: WEB_HOST=0.0.0.0 exposes read-only dashboard data on the network."
-  echo "WARN: Set CONTROL_API_TOKEN if you want remote dashboard control buttons to work."
+  echo "WARN: WEB_HOST=0.0.0.0 is enabled, but remote dashboard access will be blocked."
+  echo "WARN: Set CONTROL_API_TOKEN to use the dashboard from another device."
 fi
 
 MINER_LOGIN="$WALLET_ADDRESS"
@@ -309,10 +309,10 @@ WorkingDirectory=$(systemd_directive_value "$DIR")
 Environment=PEARL_CONFIG=$(systemd_quote_arg "$CONFIG_FILE")
 Environment=DISPLAY=$(systemd_quote_arg "${DISPLAY:-:0}")
 Environment=XAUTHORITY=$(systemd_quote_arg "${XAUTHORITY:-}")
-ExecStart=$(systemd_quote_arg "$DIR/venv/bin/uvicorn") app:app --host $(systemd_quote_arg "${WEB_HOST:-127.0.0.1}") --port ${WEB_PORT} --timeout-graceful-shutdown 5
+ExecStart=$(systemd_quote_arg "$DIR/venv/bin/uvicorn") app:app --host $(systemd_quote_arg "${WEB_HOST:-127.0.0.1}") --port ${WEB_PORT} --timeout-graceful-shutdown 25
 Restart=always
 RestartSec=10
-TimeoutStopSec=8
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target
